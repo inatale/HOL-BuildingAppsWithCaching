@@ -1,1070 +1,881 @@
-﻿<a name="HOLTop" />
-# Building Windows Azure Cloud Services with Cache Service #
+﻿<a name="HOLTop"></a>
 
----
+# Создание службы кэширования для облачной службы Windows Azure
 
-<a name="Overview" />
-## Overview ##
+* * *
 
-Windows Azure Cache Service provides a distributed, cost-effective in-memory cache for your Cloud Services. With Cache Service enabled on your Cloud Services roles, you can utilize spare memory on your service hosts as high performance cache to improve response time and system throughput. And because the cache hosts are collocated with your Cloud Service roles, you get optimal access time by avoiding external service calls. In this lab, you will learn how easy it is to enable Cache Service on your Cloud Services roles, and how to use Cache Service to provide high performance in-memory caching to your Cloud Services.
+<a name="Overview"></a>
 
-<a name="Objectives" />
-### Objectives ###
-In this hands-on lab, you will learn how to:
+## Общие сведения
 
-- Easily and quickly enable Cache service.
-- Use Cache Service for your Asp.Net session state.
-- Cache reference data from Windows Azure SQL Database in Cache Service.
-- Create a reusable and extensible caching layer for your Cloud Services.
+Служба кэширования Windows Azure обеспечивает с&nbsp;наименьшими затратами распределенное кэширование в оперативной памяти для облачных служб. Служба кэширования, активированная для ролей облачных служб, позволяет использовать свободную память узлов службы для высокопроизводительного кэширования. Это уменьшает время отклика службы и увеличивает пропускную способность системы. Узлы кэша связаны с ролями облачных служб. Это позволяет оптимизировать время доступа и сократить количество вызовов внешних служб. В этом занятии вы научитесь активировать службу кэширования для ролей облачных служб и использовать ее для высокопроизводительного кэширования в оперативной памяти облачных служб.
 
-During this lab, you will explore how to use these features in a simple Asp.Net MVC4 application.
+<a name="Objectives"></a>
 
-<a name="Prerequisites" />
-### Prerequisites ###
+### Цели
 
-The following is required to complete this hands-on lab:
+В рамках этого практического занятия вы научитесь:
 
-- [Microsoft Visual Studio 2012 Express for Web][1] or higher
-- [Windows Azure Tools for Microsoft Visual Studio 1.8][2]
-- A Windows Azure subscription - [sign up for a free trial](http://aka.ms/WATK-FreeTrial)
+*   Легко и быстро активировать службу кэширования.
+*   Кэшировать состояние сеанса Asp.Net с помощью службы кэширования.
+*   Кэшировать ссылочные данные базы данных Windows Azure SQL Database с помощью службы кэширования.
+*   Создавать расширяемый слой кэширования для облачных служб с возможностью его повторного использования.
 
-[1]: http://www.microsoft.com/visualstudio/
-[2]: http://www.windowsazure.com/en-us/develop/downloads/
-[3]: http://aka.ms/WATK-FreeTrial
+При выполнении практического занятия вы изучите эти функции на примере простого приложения Asp.Net MVC4.
 
->**Note:** This lab was designed for Windows 8.
+<a name="Prerequisites"></a>
 
-<a name="Setup" />
-### Setup ###
-In order to run the exercises in this hands-on lab you need to set up your environment first.
+### Необходимые требования
 
-1. Open a Windows Explorer window and browse to the lab’s **Source** folder.
-1. Right-click on **Setup.cmd** and select Run as Administrator to launch the setup process that will configure your environment and install the Visual Studio code snippets for this lab.
-1. If the User Account Control dialog is shown, confirm the action to proceed.
+Для данного практического занятия потребуются:
 
->**Note:** Make sure you have checked all the dependencies for this lab before running the setup.
+*   [Microsoft Visual Studio 2012 Express для Web](http://www.microsoft.com/visualstudio/) или более новая версия.
+*   [Windows Azure Tools для Microsoft Visual Studio, версия 1.8.](http://www.windowsazure.com/en-us/develop/downloads/)
+*   Подписка на Windows Azure. [Зарегистрируйтесь для получения бесплатной пробной версии.](http://aka.ms/WATK-FreeTrial)
+> **Примечание.** Для выполнения этого практического занятия необходимо использовать операционную систему Windows&nbsp;8.
 
->This lab requires a Windows Azure SQL Database to start. To build the Northwind2 database automatically, the **Setup.cmd** file will prompt to you with your Windows Azure SQL Database account information. Remember to update the NorthwingEntities connection string in the application’s configuration file to point to your database for each solution.
+<a name="Setup"></a>
 
->Remember to configure the firewall setting your Windows Azure SQL Database account to allow you to specify a list of IP addresses that can access your Windows Azure SQL Database Server. The firewall will deny all connections by default, so **be sure to configure your allow list** so you can connect to the database. Changes to your firewall settings can take a few moments to become effective. For additional information on how to prepare your Windows Azure SQL Database account, refer to the exercise 1 of the Introduction to Windows Azure SQL Database lab in the training kit.
+### Установка
 
->![SQL database setup](Images/sql-database-setup.png?raw=true "Windows Azure SQL Database setup")
+Прежде чем приступать к выполнению заданий этого практического занятия, настройте свою среду.
 
->_Windows Azure SQL Database setup_
+1.  Откройте окно Windows Explorer (Проводник Windows) и перейдите в **корневой каталог** практического занятия.
+2.  Чтобы настроить рабочую среду и установить фрагменты кода Visual Studio, необходимые для выполнения заданий этого практического занятия, щелкните правой кнопкой мыши файл **Setup.cmd** и запустите его от имени администратора.
+3.  При появлении диалогового окна User Account Control (Управление учетными записями пользователей) подтвердите действие, чтобы продолжить процесс установки.
+> **Примечание.** В ходе этого практического занятия, прежде чем приступать к установке, необходимо проверить все зависимости.
+> 
+> Для выполнения этого практического занятия необходимо использовать базу данных Windows Azure SQL. В ходе автоматического построения базы данных Northwind2 файл **Setup.cmd** запросит данные о вашей учетной записи базы данных Windows Azure SQL. Обновите строку подключения NorthwingEntities в конфигурационном файле, чтобы создать ссылку на вашу базу данных для каждого решения.
+> 
+> Настройте брандмауэр, чтобы обеспечить доступ к серверу базы данных Windows Azure SQL для списка IP-адресов, указанных в настройках учетной записи базы данных Windows Azure SQL. По умолчанию брандмауэр запрещает все подключения. Чтобы разрешить подключение к базе данных, **настройте белый список**. Изменения, внесенные в настройки брандмауэра, вступят в силу через несколько секунд. Для получения дополнительных сведений о настройке учетной записи базы данных Windows Azure SQL см.&nbsp;упражнение&nbsp;1 практического занятия &laquo;Общие сведения о базе данных Windows Azure SQL&raquo; этого учебного комплекта.
+> 
+> ![Настройка базы данных SQL](Images/sql-database-setup.png?raw=true "Настройка базы данных Windows Azure SQL")
+> 
+> _Настройка базы данных Windows Azure SQL_
 
-<a name="CodeSnippets" />
-### Using the Code Snippets ###
+<a name="CodeSnippets"></a>
 
-Throughout the lab document, you will be instructed to insert code blocks. For your convenience, most of that code is provided as Visual Studio Code Snippets, which you can use from within Visual Studio 2012 to avoid having to add it manually. 
+### Использование фрагментов кода
 
->**Note**: Each exercise is accompanied by a starting solution located in the Begin folder of the exercise that allows you to follow each exercise independently of the others. Please be aware that the code snippets that are added during an exercise are missing from these starting solutions and that they will not necessarily work until you complete the exercise. Inside the source code for an exercise, you will also find an End folder containing a Visual Studio solution with the code that results from completing the steps in the corresponding exercise. You can use these solutions as guidance if you need additional help as you work through this hands-on lab.
+Этот документ содержит фрагменты кода, которые вы будете использовать в процессе выполнения заданий. Код необязательно вводить вручную. Для вашего удобства мы подготовили фрагменты кода Visual Studio, которые можно использовать непосредственно в Visual Studio&nbsp;2012. 
 
----
+> **Примечание.** Для каждого упражнения предоставляется исходное решение, расположенное в папке Begin. Это позволяет выполнять каждое упражнение независимо от других. Не забывайте о том, что фрагменты кода, которые добавляются в процессе выполнения заданий, в исходных решениях отсутствуют. Такие решения могут находиться в нерабочем состоянии до тех пор, пока упражнение не завершено. В папке End содержится решение Visual Studio с кодом, который представляет собой результат выполнения соответствующего упражнения. Вы можете использовать эти решения в качестве дополнительной помощи для данного практического занятия.
 
-<a name="Exercises" />
-## Exercises ##
-This hands-on lab includes the following exercises:
+* * *
 
-1. [Enable Cache service for Session State](#Exercise1)
-1. [Caching Data with Cache service](#Exercise2)
-1. [Creating a Reusable and Extensible Caching Layer](#Exercise3)
+<a name="Exercises"></a>
 
-Estimated time to complete this lab: **60 minutes**.
+## Упражнения
 
->**Note:** When you first start Visual Studio, you must select one of the predefined settings collections. Every predefined collection is designed to match a particular development style and determines window layouts, editor behavior, IntelliSense code snippets, and dialog box options. The procedures in this lab describe the actions necessary to accomplish a given task in Visual Studio when using the **General Development Settings** collection. If you choose a different settings collection for your development environment, there may be differences in these procedures that you need to take into account.
+Это практическое занятие содержит следующие упражнения:
 
-<a name="Exercise1" />
-### Exercise 1: Enable Cache service for Session State ###
+1.  [Активация службы кэширования для состояния сеанса.](#Exercise1)
+2.  [Кэширование данных с помощью службы кэширования.](#Exercise2)
+3.  [Создание расширяемого слоя кэширования с возможностью его повторного использования.](#Exercise3)
 
-In this exercise, you will explore the use of the session state provider for Cache service as the mechanism for out-of-process storage of session state data. For this purpose, you will use the Azure Store-a sample shopping cart application implemented with Asp.Net MVC4. You will run this application in the compute emulator and then modify it to take advantage of the Windows Azure Cache service as the back-end store for the Asp.Net session state. You will start with a begin solution and explore the sample using the default Asp.Net in-proc session state provider. Next, you will add references to the Cache assemblies and configure the session state provider to store the contents of the shopping cart in the distributed cache cluster provided by Cache service.
+Ориентировочная продолжительность занятия: **60 минут**.
 
-<a name="Ex1Task1" />
-#### Task 1 – Running the Azure Store Sample Site in the Compute Emulator ####
+> **Примечание.** При первом запуске Visual Studio необходимо выбрать одну из предварительно созданных коллекций параметров. Каждая из этих коллекций поддерживает определенный стиль разработки и определяет макеты интерфейса, поведение редактора, фрагменты кода IntelliSense и элементы диалогового окна. В этом документе описаны действия, необходимые для выполнения определенной задачи в Visual Studio при использовании коллекции **General Development Settings** (Общие параметры разработки). Обратите внимание: процедуры могут отличаться, если вы выберете другую коллекцию параметров для вашей среды разработки.
 
-In this task, you will run the Azure Store application in the compute emulator using the default session state provider; you will change that provider to take advantage of the Windows Azure Cache service later on.
+<a name="Exercise1"></a>
 
-1. Start **Microsoft Visual Studio 2012 Express for Web** as administrator.
-1. Open the **Begin** solution located at **Source\\Ex1-CacheSessionState\\Begin**.
+### Упражнение 1. Активация службы кэширования для состояния сеанса
 
-	>**Important:** 	Before you execute the solution, make sure that the start-up project is set. For MVC projects, the start page must be left blank.
+В этом упражнении вы научитесь использовать поставщика состояния сеанса для службы кэширования в качестве механизма хранения данных о состоянии сеанса вне процесса. Для этого мы рассмотрим работу приложения Azure Store (образец корзины интернет-магазина, созданный с помощью Asp.Net MVC4). Мы запустим приложение в эмуляторе вычислений, а затем изменим его, чтобы использовать службу Windows Azure Cache в качестве хранилища для состояния сеанса Asp.Net. Мы начнем со стартового решения и изучим его с помощью принятого по умолчанию внутрипроцессного поставщика состояния сеанса Asp.Net. Затем мы добавим ссылки на сборки кэша и настроим поставщика состояния сеанса так, чтобы содержимое корзины хранилось в распределенном кластере кэша, доступ к которому предоставляется службой кэширования.
 
-	>To set the start-up project, in **Solution Explorer**, right-click the **CloudShop.Azure** project and select **Set as StartUp Project**.
-	
-	>To set the start page, in **Solution Explorer**, right-click the **CloudShop** project and select **Properties**. In the **Properties** window, select the **Web** tab and in the **Start Action**, select **Specific Page**. Leave the value of this field blank.
+<a name="Ex1Task1"></a>
 
-1. In the **Web.config** file, update the _NorthwindEntities_ connection string to point to your database. Replace **[YOUR-SQL-DATABASE-SERVER-ADDRESS]**, **[SQL-DATABASE-USERNAME]**, and **[SQL-DATABASE-PASSWORD]** in the connectionStrings section with the Windows Azure SQL Database server name, Administrator Username and Administrator password that you registered at the portal and used for creating the database during setup.
+#### Задание 1. Запуск образца сайта Azure Store в эмуляторе вычислений
 
-	>**Note:** Make sure that you follow the instructions of the setup section to create a copy of the Northwind2 database in your own Windows Azure SQL Database account and configure your Windows Azure SQL Database firewall settings.
+В этом задании вы запустите приложение Azure Store в эмуляторе вычислений, используя заданного по умолчанию поставщика состояний сеанса. Затем вы измените поставщика, чтобы использовать преимущества службы кэширования Windows Azure.
 
-1. Press **CTRL** + **F5** to build and run the application withouth debugging in the compute emulator. 
+1.  Запустите **Microsoft Visual Studio 2012 Express for Web** от имени администратора.
+2.  Откройте решение **Begin** из каталога **Source\Ex1-CacheSessionState\Begin**.
 
-	>**Note:** Make sure that you run the application without debugging. With debugging mode you won't be able to recycle the web role
+    > **Важно!**     Перед запуском решения убедитесь, что начальный проект установлен. Для проектов MVC начальная страница должна быть пустой.
+> 
+> Чтобы указать начальный проект, откройте **обозреватель решений**, щелкните правой кнопкой мыши проект **CloudShop.Azure** и выберите **Set as StartUp Project** (Использовать в качестве начального проекта).
+> 
+> Чтобы настроить начальную страницу, откройте **обозреватель решений**, щелкните правой кнопкой мыши проект **CloudShop** и выберите **Properties** (Свойства). В окне **Properties** выберите вкладку **Web** (Интернет). В списке **Start Action** (Начальное действие) выберите **Specific Page** (Определенная страница). Оставьте это поле пустым.
+3.  Откройте файл **Web.config** и обновите строку подключения _NorthwindEntities_, создав ссылку на базу данных. Замените строки **[YOUR-SQL-DATABASE-SERVER-ADDRESS]**, **[SQL-DATABASE-USERNAME]** и **[SQL-DATABASE-PASSWORD]** в разделе connectionStrings на имя сервера Windows Azure SQL Database, имя пользователя с правами администратора и пароль администратора, который вы использовали для регистрации на портале и создания базы данных при начальной установке.
 
-1. Explore the main page of the application, the **Products** page, which displays a list of products obtained from a Windows Azure SQL Database.
+    > **Примечание.** Следуя инструкции по установке, необходимо создать копию базы данных Northwind2 для вашей учетной записи базы данных Windows Azure SQL, а также настроить брандмауэр базы данных Windows Azure SQL.
+4.  Нажмите клавиши **CTRL**+**F5**, чтобы создать и запустить приложение в эмуляторе вычислений без отладки.
+    > **Примечание.** Убедитесь, что приложение запущено в режиме без отладки. В режиме отладки вы не сможете перезапустить веб-роль.
+5.  Изучите страницу **Products** (Продукты)&nbsp;&mdash; основную страницу приложения. На ней отображается список продуктов, полученный из базы данных Windows Azure SQL.
 
-	![Azure Store products page](Images/azure-store-products-page.png?raw=true "Azure Store products page")
+![Страница продуктов Azure Store](Images/azure-store-products-page.png?raw=true "Страница продуктов Azure Store")
 
-	_Azure Store products page_
+    _Страница продуктов Azure Store_
 
-1. Select a product from the list and click **Add item to cart**. You may repeat the process to store additional items in the shopping cart.
-1. Click the **Checkout** link to view the contents of the cart. Verify that the items you selected appear on the list. These items are stored in the current session.
+6.  Выберите продукт из списка и щелкните **Add item to cart** (Добавить в корзину). Таким образом в корзину можно добавить несколько объектов.
 
-	![Checkout page showing the contents of the shopping cart](Images/checkout-page-showing-the-contents-of-the-sho.png?raw=true "Checkout page showing the contents of the shopping cart")
+7.  Щелкните ссылку **Checkout** (Извлечь), чтобы просмотреть содержимое корзины. Проверьте, содержит ли список выбранные вами элементы. Эти элементы хранятся в текущем сеансе.
 
-	_Checkout page showing the contents of the shopping cart_
+![На странице Checkout отображается содержимое корзины](Images/checkout-page-showing-the-contents-of-the-sho.png?raw=true "На странице Checkout отображается содержимое корзины")
 
-1. Navigate back to **Products** page.
-1. Click on **Recycle** link. This link forces the web role to be recycled. Once you click on the link, the Products page will turn blank.
-1. In the **Compute Emulator**, observe how the web role is recycled by the emulator:
+    _На странице Checkout отображается содержимое корзины_
 
-	![Suspending the service role instance](Images/suspending-the-service-role-instance.png?raw=true "Suspending the service role instance")
+8.  Перейдите обратно на страницу **Products**.
 
-	_Web role recycled_
+9.  Щелкните ссылку **Recycle** (Перезапустить). Эта ссылка инициирует перезапуск веб-роли. Щелкнув эту ссылку, вы удалите содержимое страницы Products.
 
-1. Got back to browser, remove */Home/Recylce* from address bar, and then press Enter to reload the site. The **Products** page should come back normal after a short delay.
+10.  Откройте окно **Compute Emulator** (Эмулятор вычислений) и изучите процесс перезапуска веб-роли эмулятором.
 
-1. Navigate to **Checkout** page. Notice that the order now appears empty.
+![Приостановка экземпляра роли службы](Images/suspending-the-service-role-instance.png?raw=true "Приостановка экземпляра роли службы")
 
-	>**Note:** The application is currently using in-proc session state, which maintains the session state in-memory. When you stop the service instance, it discards all session state including the contents of the shopping cart. In the following task, you will configure the application to store session state using Windows Azure Caching as the storage mechanism, which allows the application to maintain the session state in the presence of restarts and across multiple role instances hosting the application.
+    _Веб-роль перезапущена_
 
-1. Close the browser window to stop the application.
+11.  Снова откройте браузер, удалите _/Home/Recycle_ из адресной строки и нажмите клавишу ВВОД, чтобы перезапустить сайт. Через некоторое время откроется пустая страница **Products**.
 
-<a name="Ex1Task2" />
-#### Task 2 – Adding a dedicated caching role ####
-In this task, you will add a new worker role that serves as a dedicated cache host. All other web roles and worker roles in the Cloud Service will be able to access the Cache service hosted by this role. You can set up multiple such dedicated work roles within your Cloud Service. In addition, you can also enable Cache service on any of the existing roles and allocate certain percentage of virtual machine memory to be used as cache. 
+12.  Перейдите на страницу **Checkout**. Обратите внимание, что поле заказа теперь пусто.
 
-1. In solution explorer, expand **CloudShop.Azure** node, and then right-click on **Roles**. Then, select **Add**->**New Worker Role Project...***.
-2. In **Add New Role Project** dialog, select **Cache Worker Role** template. Name the role as **CacheWorkerRole**, and then click **Add**.
+    > **Примечание.** Сейчас приложение использует состояние сеанса внутри процесса, которое хранится в оперативной памяти. Остановка экземпляра службы приведет к удалению всей информации о состоянии сеанса, включая содержимое корзины. В следующем задании мы настроим приложение так, чтобы состояние сеанса хранилось службой кэширования Windows Azure. Это позволит приложению сохранять состояние сеанса при перезапусках и использовать его для нескольких экземпляров ролей, размещающих приложение.
+13.  Закройте окно браузера, чтобы остановить приложение.
 
-  >**Note:** All Cache hosts in your Cloud Service share their runtime states via a Windows Azure Blog Storage. By default, a cache work role is configured to use development storage. You can change this setting in **Caching** tab on the role property page. 
+<a name="Ex1Task2"></a>
 
-<a name="Ex1Task3" />
-#### Task 3 – Configuring Session State Using Windows Azure Cache service ####
+#### Задание 2. Добавление выделенной роли кэширования
 
-In this task, you will change the Session State provider to take advantage of the Windows Azure Cache as the storage mechanism. This requires adding the appropriate assemblies to the **CloudShop** project and then updating the corresponding configuration in the **Web.config** file. 
+В этом задании вы создадите новую рабочую роль для использования в качестве выделенного узла кэширования. Все остальные веб-роли и рабочие роли облачной службы смогут обращаться к службе кэширования, которую размещает эта роль. В облачной службе можно использовать несколько таких выделенных рабочих ролей. Кроме того, для любой из существующих ролей можно включить службу кэширования и выделить часть памяти виртуальной машины для использования в качестве кэша. 
 
-1. In Visual Studio 2012 Express for Web, open **Package manager Console** from **Tools**->**Library package Manager**->**Package Manager Console** menu.
-
-1. Make sure that **CloudShop** is selected in the **Default project** drop-down list. Issue the following command to install the Nuget package for Cache service:  
- 
-	````PowerShell
-	Install-package Microsoft.WindowsAzure.Caching 
-	````
-   
-1. Open the **Web.config** file located in the root folder of the **CloudShop** project.
-1. Change **[cache cluster role name]** to **CacheWorkerRole**.
-
-	<!--mark: 4-->
-	```` XML
-	<dataCacheClients>
-     <tracing sinkType="DiagnosticSink" traceLevel="Error" />
-      <dataCacheClient name="default">
-       <autoDiscover isEnabled="true" identifier="CacheWorkerRole" />
-      <!--<localCache isEnabled="true" sync="TimeoutBased" objectCount="100000" ttlValue="300" />-->
-      </dataCacheClient>
-  </dataCacheClients>
-	  ...
-	````
-
-1. Add a new session state provider configuration under System.Web tag:  
-
-	````XML
-	<system.Web>
-	...
-	<sessionState mode="Custom" customProvider="NamedCacheBProvider">
-      <providers>
-        <add cacheName="default" name="NamedCacheBProvider" 
-             dataCacheClientName="default" applicationName="MyApp" 
-             type="Microsoft.Web.DistributedCache.DistributedCacheSessionStateStoreProvider, Microsoft.Web.DistributedCache" />
-      </providers>
-    </sessionState>
-	...
-	</system.web>
-   ````
-1. Press **CTRL + S** to save your changes to the **Web.config** file.
-
-<a name="Ex1Task4"></a>
-#### Task 4 – Verification ####
-
-1. Press **Ctrl + F5** to build and run the application. Wait for the browser to launch and show the **Products** page. 
-1. Select one product from the list and click Add item to cart. Repeat the process to store additional items in the cart.
-1. Click the **Checkout** link to view the contents of the shopping cart. Verify that the items you selected appear on the list.
-1. Navigate back to **Products** page and click on "Recycle" link.
-1. Observe the web role getting recycled in **Show Compute Emulator UI**. 
-1. Go back to browser, remove */Home/Recycle* from address, and then press Enter to reload the site.
-1. **Products** page should load correctly. Navigate to **Checkout** page. Notice that the order is intact. This confirms that with the Windows Azure Caching provider, the session state is stored outside the role instance and can persist through application restarts.
-
-	> **Note:** You should infer from the verification that for an application hosted in multiple servers or Windows Azure role instances where a load balancer distributes requests to the application, clients would continue to have access to their session data regardless of which instance responds to the request.
-
-1. Close the browser window to stop the application.
-
-<a name="Exercise2" />
-### Exercise 2: Caching Data with Windows Azure Caching ###
-
-This exercise will show you how to use the Windows Azure Caching to cache results from queries to Windows Azure SQL Database. You will continue with a solution based on the one used for the previous exercise the only difference is in the home page, which has been updated to show the elapsed time to retrieve the list of products in the catalog, and now has a link to enable or disable the use of the cache.
-During the exercise, you will update the data access code with a trivial implementation of caching. It uses the canonical pattern, in which the code checks the cache first to retrieve the results of a query and, if there is no data available, executes the query against the database to cache the results.
-
-<a name="Ex2Task1" />
-#### Task 1 – Caching Data Retrieved from the SQL Reporting ####
-
-To make use of Windows Azure Caching, you first need to create a **DataCacheFactory** object. This object determines the cache cluster connection information, which is set programmatically or by reading settings from the configuration file. Typically, you create an instance of the factory class and use it for the lifetime of the application. To store data in the cache, you request a **DataCache** instance from the **DataCacheFactory** and then use it to add or retrieve items from the cache.
-In this task, you update the data access code to cache the result of queries to Windows Azure SQL Database using the Windows Azure Caching. 
-
-1. Start **Microsoft Visual Studio 2012 Express for Web** as an administrator.
-1. Open the **Begin** solution located at **Source\\Ex2-CachingData\\Begin**.
-
-	>**Important:** Before you execute the solution, make sure that the start-up project is set. For MVC projects, the start page must be left blank. 
-	> To set the startup project, in **Solution Explorer**, right-click the **CloudShop.Azure** project and then select **Set as StartUp Project**. 
-	> To set the start page, in **Solution Explorer**, right-click the **CloudShop** project and select **Properties**. In the **Properties** window, select the **Web** tab and in the **Start Action**, select **Specific Page**. Leave the value of this field blank.
-
-1. In the **Web.config** file, update the _NorthwindEntities_ connection string to point to your database. Replace **[YOUR-SQL-DATABASE-SERVER-ADDRESS]**, **[SQL-DATABASE-USERNAME]**, and **[SQL-DATABASE-PASSWORD]** with the Windows Azure SQL Database server name, Administrator Username and Administrator password that you registered at the portal and used for creating the database during setup.
-
-	> **Note:** 	Make sure that you follow the instructions of the setup section to create a copy of the Northwind2 database in your own Windows Azure SQL Database account and configure your Windows Azure SQL Database firewall settings.
-
-1. Open the **ProductsRepository.cs** file in the **Services** folder of the **CloudShop** project.
-1. Add a namespace directive for **Microsoft.ApplicationServer.Caching**.
-
-	<!--mark: 5-->
-	````C#
-	using System;
-	using System.Collections.Generic;
-	using System.Linq;
-	using CloudShop.Models;
-	using Microsoft.ApplicationServer.Caching;
-	...
-	````
-
-1. In the **ProductsRepository** class, add the following highlighted code to define a constructor and declare a static member variable for a **DataCacheFactory** object instance, in addition to a boolean instance variable to control the use of the cache.
-
-	(Code Snippet - _BuildingAppsWithCachingService-Ex2-ProductsRepository constructor-CS_)
-	<!--mark: 3-9-->
-	````C#
-	public class ProductsRepository : IProductRepository	
-	{
-	  private static DataCacheFactory cacheFactory = new DataCacheFactory();
-	  private bool enableCache = false;
- 
-	  public ProductsRepository(bool enableCache)
-	  {
-	    this.enableCache = enableCache;
-	  }
- 
-	  public List<string> GetProducts()
-	  {
-	    ...
-	  }
-	}
-	````
-
-	> **Note:** The **DataCacheFactory** member is declared as static and is used throughout the lifetime of the application.
-
-1. Locate the **GetProducts** method and insert the following (highlighted) code immediately after the line that declares the **products** local variable.
-	
-	(Code Snippet - _BuildingAppsWithCachingService-Ex2-GetProducts read cache-CS_)
-	<!--mark: 8-30-->
-	````C#
-	public class ProductsRepository : IProductRepository
-	{
-	  ...
-	  public List<string> GetProducts()
-	  {
-	    List<string> products = null;
-	
-	    DataCache dataCache = null;
-	    if (this.enableCache)
-	    {
-	      try
-	      {
-	        dataCache = cacheFactory.GetDefaultCache();
-	        products = dataCache.Get("products") as List<string>;
-	        if (products != null)
-	        {
-	          products[0] = "(from cache)";
-	          return products;
-	        }
-	      }
-	      catch (DataCacheException ex)
-	      {
-	        if (ex.ErrorCode != DataCacheErrorCode.RetryLater)
-	        {
-	          throw;
-	        }
-
-	        // ignore temporary failures
-	      }
-	    }
- 	    
-	    NorthwindEntities context = new NorthwindEntities();
-	    
-	    try
-	    {
-	      var query = from product in context.Products
-	                  select product.ProductName;
-	      products = query.ToList();
-	    }
-	    finally
-	    {
-	      if (context != null)
-	      {
-	        context.Dispose();
-	      }
-	    }
-	    
-	    return products;
-	  }
-	}
-	````
-
-	>**Note:** The inserted code uses the **DataCacheFactory** object to return an instance of the default cache object and then attempts to retrieve an item from this cache using a key with the value "_products_". If the cache contains an object with the requested key, it sets the text of the first entry to indicate that the list was retrieved from the cache and then returns it. The code treats temporary failures from the Windows Azure Caching service as a cache miss so that it can retrieve the item from its data source instead.
-
-1. Next, add the following (highlighted) code block to the **GetProducts** method, immediately before the line that returns the **products** list at the end of the method.
-
-	(Code Snippet - _BuildingAppsWithCachingService-Ex2-GetProducts write cache-CS_)
-	<!--mark: 30-35-->
-	````C#
-	public class ProductsRepository : IProductRepository
-	{
-		...
-		public List<string> GetProducts()
-		{
-			List<string> products = null;
-		
-			DataCache dataCache = null;
-			if (this.enableCache)
-			{
-			  ...
-			}
-		
-			NorthwindEntities context = new NorthwindEntities();
-		
-			try
-			{
-			  var query = from product in context.Products
-			             select product.ProductName;
-			  products = query.ToList();
-			}
-			finally
-			{
-			  if (context != null)
-			  {
-			    context.Dispose();
-			  }
-			}
-		
-			products.Insert(0, "(from data source)");
-		
-			if (this.enableCache && dataCache != null)
-			{
-			  dataCache.Add("products", products, TimeSpan.FromSeconds(30));
-			}
-			
-			return products;
-		}
-	}
-	````
-
-	>**Note:** The inserted code stores the result of the query against the data source into the cache and sets its expiration policy to purge the item from the cache after 30 seconds.
-
-<a name="Ex2Task2" />
-#### Task 2 – Measuring the Data Access Latency ####
-
-In this task, you will update the application to allow control of the use of the cache from the UI and to display the time required to retrieve catalog data, allowing you to compare the latency of retrieving data from the cache against the time required to access the data source.
-
-1. Open the **HomeController.cs** file in the **Controllers** folder and add the **System.Diagnostics** using directive at the top of the file.
-	
-	<!-- mark:1 -->
-	````C#
-	using System.Diagnostics;
-	````
-
-1. Find the **Index** action, locate the lines that instantiate a new **ProductsRepository** and call its **GetProducts** method, and replace them with the highlighted code, as shown below.
-
-	(Code Snippet - _BuildingAppsWithCachingService-Ex2-GetProducts latency-CS_)
-	<!--mark: 9-17; strike:6-8-->
-	````C#
-	public class HomeController : Controller
-	{
-	  ...                       
-	  public ActionResult Index()
-	  {
-	    Services.IProductRepository productRepository =
-	        new Services.ProductsRepository();
-	    var products = productRepository.GetProducts();
-	    bool enableCache = (bool)this.Session["EnableCache"];
-	
-	    // retrieve product catalog from repository and measure the elapsed time
-	    Services.IProductRepository productRepository =
-	        new Services.ProductsRepository(enableCache);
-	    Stopwatch stopWatch = new Stopwatch();
-	    stopWatch.Start();
-	    var products = productRepository.GetProducts();
-	    stopWatch.Stop();
- 
-	    // add all products currently not in session
-	    var itemsInSession = this.Session["Cart"] as List<string> ?? new List<string>();
-	    var filteredProducts = products.Where(item => !itemsInSession.Contains(item));
-	
-	    IndexViewModel model = new IndexViewModel()
-	    {
-	      Products = filteredProducts
-	    };
-	
-	    return View(model);
-	  }
-	  ...
-	}
-	````
-
-1. In the same method, locate the code that creates a new **IndexViewModel** instance and replace its initialization with the following (highlighted) code block.
-
-	(Code Snippet - _BuildingAppsWithCachingService-Ex2-IndexViewModel initialization-CS_)
-	<!--mark: 22-25-->
-	````C#
-	public class HomeController : Controller
-	{
-	  ...                       
-	  public ActionResult Index()
-	  {
-	    bool enableCache = (bool)this.Session["EnableCache"];
-	
-	    // retrieve product catalog from repository and measure the elapsed time
-	    Services.IProductRepository productRepository =
-	        new Services.ProductsRepository(enableCache);
-	    Stopwatch stopWatch = new Stopwatch();
-	    stopWatch.Start();
-	    var products = productRepository.GetProducts();
-	    stopWatch.Stop();
-	
-	    // add all products currently not in session
-	    var itemsInSession = this.Session["Cart"] as List<string> ?? new List<string>();
-	    var filteredProducts = products.Where(item => !itemsInSession.Contains(item));
-	
-	    IndexViewModel model = new IndexViewModel()
-	    {
-	      Products = filteredProducts,
-	      ElapsedTime = stopWatch.ElapsedMilliseconds,
-	      IsCacheEnabled = enableCache,
-	      ObjectId = products.GetHashCode().ToString()
-		};
-	
-	    return View(model);
-	  }
-	  ...
-	}
-	````
-
-	>**Note:** The elements added to the view model provide the time taken to load the product catalog from the repository, a flag to indicate whether the cache is enabled, and an identifier for the catalog object returned by the call to **GetProducts**. The view displays the object ID to allow you to determine whether the instance returned by the call to the repository has changed. This feature will be used later in the exercise, when you enable the local cache.
-
-
-1. Add a new action method to the **HomeController** to enable or disable the cache from the UI of the application.
-
-	(Code Snippet - _BuildingAppsWithCachingService-Ex2-EnableCache method-CS_)
-	<!--mark: 4-8-->
-	````C#
-	public class HomeController : Controller
-	{
-	  ...
-	  public ActionResult EnableCache(bool enabled)
-	  {
-	    this.Session["EnableCache"] = enabled;
-	    return RedirectToAction("Index");
-	  }
-	 }
-	````
-
-1. Press **F5** to build and launch the application in the compute emulator.
-
-	>**Note:** Ideally, you should test the code in Windows Azure. When you execute the application in the compute emulator, consider that accessing the Windows Azure SQL Database data source and the Windows Azure Caching require executing requests to resources located outside the bounds of your own network. Depending on your geographic location, both requests may exhibit a relatively high latency, which may overshadow the difference between the cached and non-cached scenarios. Once you deploy the application to Windows Azure, it is co-located in the same data center as the Windows Azure Caching service in Windows Azure SQL Database. As the latency is much lower, the results should be more significant.
-
-1. When you start the application, the cache is initially disabled. Refresh the page and notice the elapsed time displayed at the bottom of the page that indicates the time required to retrieve the product catalog. Note that the first item in the list indicates that the application retrieved the product catalog from the data source.
-
-	>**Note:** You may need to refresh the page several times to obtain a stable reading. The value shown for the first request may be greater because ASP.NET needs to compile the page.
-
-	![Running the application without the cache](Images/running-the-application-without-the-cache.png?raw=true "Running the application without the cache")
-
-	_Running the application without the cache_
-
-1. Observe the **Object ID** indicator shown above the product catalog and notice how it changes every time you refresh the page indicating that the repository returns a different object for each call.
-
-1. Now, click **Yes** in **Enable Cache** and wait for the page to refresh. Notice that the first item in the list indicates that it was still necessary for the application to retrieve the product catalog from the data source because the information has yet to be cached.
-
-1. Click **Products**, or refresh the page in the browser. This time, the application retrieves the product data from the Windows Azure Caching and the elapsed time should be lower. Confirm that the first item in the list indicates that the source of the information is the cache.
-
-	![Running the application with the cache enabled](Images/running-the-application-with-the-cache-enable.png?raw=true "Running the application with the cache enabled")
-
-	_Running the application with the cache enabled_
-
-1. Close the browser.
-
-<a name="Ex2Task3"></a>
-#### Task 3 – Enabling the Local Cache ####
-
-When using Windows Azure Caching, you have the option of using a local cache that allows objects to be cached in-memory at the client, as well as being stored in the cache cluster. In this task, you will enable the local cache and then compare the access time with the remote case.
-
-1. Open the **ProductsRepository.cs** file in the **Services** folder of the **CloudShop** project.
-
-	>**Note:** Make sure your solution is not running before editing the files.
-
-1. In the **ProductsRepository** class, replace the current member fields and the constructor with the following code, to add the logic for managing the localCache configuration.
-
-	(Code Snippet - _BuildingAppsWithCachingService-Ex2-ProductsRepository with local cache-CS_)
-	<!--mark: 2-34-->
-	````C#
-	...	
-	private static DataCacheFactory cacheFactory;
-	private static DataCacheFactoryConfiguration factoryConfig;
-	private bool enableCache = false;
-	private bool enableLocalCache = false;
-	
-	public ProductsRepository(bool enableCache, bool enableLocalCache)
-	{
-	    this.enableCache = enableCache;
-	    this.enableLocalCache = enableLocalCache;
-	
-	    if (enableCache)
-	    {
-	        if (enableLocalCache && (factoryConfig == null || !factoryConfig.LocalCacheProperties.IsEnabled))
-	        {
-	            TimeSpan localTimeout = new TimeSpan(0, 0, 30);
-	            DataCacheLocalCacheProperties localCacheConfig = new DataCacheLocalCacheProperties(10000, localTimeout, DataCacheLocalCacheInvalidationPolicy.TimeoutBased);
-	            factoryConfig = new DataCacheFactoryConfiguration();
-	
-	            factoryConfig.LocalCacheProperties = localCacheConfig;
-	            cacheFactory = new DataCacheFactory(factoryConfig);
-	        }
-	        else if (!enableLocalCache && (factoryConfig == null || factoryConfig.LocalCacheProperties.IsEnabled))
-	        {
-	            cacheFactory = null;
-	        }
-	    }
-	
-	    if (cacheFactory == null)
-	    {
-	        factoryConfig = new DataCacheFactoryConfiguration();
-	        cacheFactory = new DataCacheFactory(factoryConfig);
-	    }
-	} 
-	...
-	````
-
-1. Open the **HomeController.cs** file in the **Controllers** folder and find the **Index** action. Locate the line that instantiates a new **ProductsRepository** and Replace those lines with the following highlighted code:
-
-	(Code Snippet - _BuildingAppsWithCachingService-Ex2-GetProducts LocalCache-CS_)
-	<!--mark: 7-10; strike: 11-13-->
-	````C#
-	public class HomeController : Controller
-	{
-	  ...                       
-	  public ActionResult Index()
-	  {
-		bool enableCache = (bool)this.Session["EnableCache"];
-		bool enableLocalCache = (bool)this.Session["EnableLocalCache"];
-
-		// retrieve product catalog from repository and measure the elapsed time
-		Services.IProductRepository productRepository = new Services.ProductsRepository(enableCache, enableLocalCache);
-		// retrieve product catalog from repository and measure the elapsed time
-		Services.IProductRepository productRepository =
-		new Services.ProductsRepository(enableCache);
-		Stopwatch stopwatch = new Stopwatch();
-		stopWatch.Start();
-		var products = productRepository.GetProducts();
-	    ...
-	}
-	````
-
-1. In the same method, locate the code that creates a new **IndexViewModel** and add the following highlighted property.
-
-	<!--mark: 25-->
-	````C#
-	public class HomeController : Controller
-	{
-	  ...                       
-	  public ActionResult Index()
-	  {
-	      bool enableCache = (bool)this.Session["EnableCache"];
-	      bool enableLocalCache = (bool)this.Session["EnableLocalCache"];
-	      // retrieve product catalog from repository and measure the elapsed time
-	      Services.IProductRepository productRepository =
-	      new Services.ProductsRepository(enableCache, enableLocalCache);
-	      Stopwatch stopwatch = new Stopwatch();
-	      stopWatch.Start();
-	      var products = productRepository.GetProducts();
-	      stopWatch.Stop();
-	
-	      // add all products currently not in session
-	      var itemsInSession = this.Session["Cart"] as List<string> ?? new List<string>();
-	      var filteredProducts = products.Where(item => !itemsInSession.Contains(item));
-	
-	      IndexViewModel model = new IndexViewModel()
-	      {
-	          Products = filteredProducts,
-	          ElapsedTime = stopWatch.ElapsedMilliseconds,
-	          IsCacheEnabled = enableCache,
-	          IsLocalCacheEnabled = enableLocalCache,
-	          ObjectId = products.GetHashCode().ToString()
-	      };
-	      return View(model);
-	  }
-	}
-	````
-
-1. Add a new action method to the **HomeController** to enable or disable the local cache from the UI of the application.
-
-	(Code Snippet - _BuildingAppsWithCachingService-Ex2-EnableLocalCache method-CS_)
-	<!--mark: 4-8-->
-	````C#
-	public class HomeController : Controller
-	{
-	  ...
-	  public ActionResult EnableLocalCache(bool enabled)
-	  {
-	    this.Session["EnableLocalCache"] = enabled;
-	    return RedirectToAction("Index");
-	  }
- }
-	````
-
-1. Open **Index.cshtml** file in the **Views\Home** folder and add the following highlighted code above the **elapsedTime** div.
-
-	(Code Snippet - _BuildingAppsWithCachingService-Ex2-EnableLocalCache Option-HTML_)
-	<!--mark: 12-23-->
-	````HTML
-	<fieldset>
-		 <legend>Cache settings for product data</legend>Enable Cache:
-		 @if (Model.IsCacheEnabled)
-		 {
-			  <span>Yes |</span><span>@Html.ActionLink("No", "EnableCache", new { enabled = false })</span>
-		 }
-		 else
-		 {
-			  <span>@Html.ActionLink("Yes", "EnableCache", new { enabled = true })</span><span> | No</span>
-		 }
-		 <br />
-		 @if(Model.IsCacheEnabled)
-		 {
-			  <span>Use Local Cache:</span>
-			  if (Model.IsLocalCacheEnabled)
-			  {
-					<span>Yes |</span><span>@Html.ActionLink("No", "EnableLocalCache", new { enabled = false })</span>
-			  }
-			  else
-			  {
-					<span>@Html.ActionLink("Yes", "EnableLocalCache", new { enabled = true })</span><span> | No</span>
-			  }
-		 }
-		 <div id="elapsedTime">Elapsed time: @Model.ElapsedTime.ToString() milliseconds.</div>
-	</fieldset>
-````
-
-1. Press **F5** to build and launch the application in the compute emulator.
- 
-1. When you start the application, the cache option is initially disabled and the local cache option is hidden (it will be shown once you enable cache). Enable cache and then the local cache. 
-
-1. Refresh the page several times until the elapsed time stabilizes. Notice that the reading is now significantly lower, possibly under a millisecond, showing that the application now retrieves the data from the local in-memory cache. 
-
-	![Using the local cache](Images/using-the-local-cache.png?raw=true "Using the local cache")
-
-	_Using the local cache_
-
-1. Observe that, each time you refresh the page, the **Object ID** shown above the product catalog remains constant indicating that the repository now returns the same object each time.
-
-	>**Note:** 	This is an important aspect to consider. Previously, with the local cache disabled, changing an object retrieved from the cache had no effect on the cached data and subsequent fetches always returned a fresh copy. Once you enable the local cache, it stores references to in-memory objects and any changes to the object directly affect the cached data. 
-You should be aware of this when using the cache in your own applications and consider that, after changing a cached object and later retrieving the same object from the cache, it may or may not include these changes depending on whether it is returned by the local or remote cache.
-
-1. Wait for at least 30 seconds and then refresh the page one more time. Notice that the elapsed time is back to its original value and that the object ID has changed, showing that the cached item has expired and been purged from the cache due to the expiration policy set on the object when it was stored.
-
-<a name="Exercise3" />
-### Exercise 3: Creating a Reusable and Extensible Caching Layer ###
-
-In the previous exercise, you explored the fundamental aspects of using the Windows Azure Caching by directly updating the methods in the data access class to cache data retrieved from the repository. While this approach can yield significant benefits, it requires you to change each one of your data access methods to enable caching. An alternative approach that does not require changes to your existing data access classes would be advantageous. 
-
-In this exercise, you will explore building a caching layer on top of your existing data access classes that will allow you to plug in different caching providers, or even remove them altogether, through simple configuration changes.
-
-To build this layer, you will implement an abstract caching class named **CachedDataSource** that will provide support for storing and removing data in the cache. You will then derive from this class to create a caching equivalent for any data source in your application. The only requirement is that your data source implements a contract to define its data access operations. The caching class encapsulates a caching provider, which you need to provide in its constructor, and provides methods to retrieve and remove data from the cache.
-
-The data retrieval method in the caching class receives a cache key that uniquely identifies a cached item, a delegate that retrieves data from the data source, and a cache expiration policy that determines when to purge the item from the cache. This method implements the classic caching pattern where it first attempts to retrieve an item from the cache and, if it does not find a copy, uses the supplied delegate to retrieve the data from the source and then stores it in the cache.
-
-The implementation of the **CachedDataSource** class is completely reusable, allowing you to use any caching provider that fits your requirements. To specify a caching provider, you supply an [ObjectCache](http://msdn.microsoft.com/en-us/library/system.runtime.caching.objectcache.aspx) instance to its constructor. The **ObjectCache** class, part of the **System.Runtime.Caching** namespace, was introduced in the .NET Framework 4 to make caching available for all applications. This abstract class represents an object cache and provides base methods and properties for accessing an underlying cache provider. The .NET Framework already offers a concrete implementation of this class that provides an in-memory cache, the [MemoryCache](http://msdn.microsoft.com/en-us/library/system.runtime.caching.memorycache.aspx). 
-
-To use a given cache service with the **CachedDataSource** derived class, you need to supply an **ObjectCache** implementation specific to the caching provider. A good approach is to create a data source factory that allows you to choose a suitable caching implementation based on your needs. Replacing the caching provider is then simply a matter of changing a setting in the configuration file.
-
-Currently, the Windows Azure Caching does not supply its own **ObjectCache** implementation. Nevertheless, you can create one that provides a wrapper around its services. You will find an example of such an implementation, the **AzureCacheProvider**, in the **BuildingAppsWithCacheService\\Source\\Assets** folder. This class derives from **ObjectCache** to expose the services in the Windows Azure Caching.
-
-To take advantage of this caching implementation in the Azure Store application, you will create a caching counterpart of the **ProductsRepository** class. The application uses this class, which implements an **IProductsRepository** contract with a single **GetProducts** operation, to retrieve catalog information from Windows Azure SQL Database. To create a caching products catalog source, you need to perform the following steps:
-
-- Create a new **CachingProductsReposity** class that inherits from **CachedDataSource**.
-
-- Add a constructor to the new class that receives an **IProductRepository** parameter with an instance of the non-caching data source class as well as an **ObjectCache** parameter with an instance of the caching provider to use.
-
-- Implement each method in the **IProductRepository** interface by calling the **RetrievedCachedData** method in the base class and supplying a delegate that calls the original data source class.
-
-<a name="Ex3Task1" />
-#### Task 1 – Implementing a Caching Data Source Base Class ####
-
-In this task, you will create the abstract class that you will use as the base class for your caching data source classes. You can take advantage of this general-purpose class in any project that requires a caching layer.
-
-1. Start **Microsoft Visual Studio 2012 Express for Web** as administrator.
-
-1. Open the **Begin** solution located at **Source\\Ex3-ReusableCachingImplementation**.
-
-	>**Important:** 	Before you execute the solution, make sure that the start-up project is set. For MVC projects, the start page must be left blank.  
-	
-	> To set the start up project, in **Solution Explorer**, right-click the **CloudShop.Azure** project and then select **Set as StartUp Project**. 
-
-	> To set the start page, in **Solution Explorer**, right-click the **CloudShop** project and select **Properties**. In the **Properties** window, select the **Web** tab and in the **Start Action**, select **Specific Page**. Leave the value of this field blank.
-
-1. In the **Web.config** file, update the _NorthwindEntities_ connection string to point to your database. Replace **[YOUR-SQL-DATABASE-SERVER-ADDRESS]**, **[SQL-DATABASE-USERNAME]**, and **[SQL-DATABASE-PASSWORD]** with the Windows Azure SQL Database server name, Administrator Username and Administrator password that you registered at the portal and used for creating the database during setup.
-
-	>**Note:** 	Make sure that you follow the instructions of the setup section to create a copy of the Northwind2 database in your own Windows Azure SQL Database account and configure your Windows Azure SQL Database firewall settings.
-
-1. Add a reference to the **System.Runtime.Caching** assembly in the **CloudShop** project.
-
-1. In the **Services** folder of the **CloudShop** project, add a new folder named **Caching**.
-
-1. Inside the **Caching** folder created in the previous step, add a new class file named **CachedDataSource.cs**.
-
-1. In the new class file, add a namespace directive for **System.Runtime.Caching**.
-
-	<!--mark: 5-->
-	````C#
-	using System;
-	using System.Collections.Generic;
-	using System.Linq;
-	using System.Web;
-	using System.Runtime.Caching;
-	...
-	````
-
-1. Specify an **abstract** modifier for the **CachedDataSource** class.
-
-	<!--mark: 1-3-->
-	````C#
-	public abstract class CachedDataSource
-	{
-	}
-	````
-
-1. Add the following (highlighted) member fields to the class.
-
-	(Code Snippet - _BuildingAppsWithCachingService-Ex3-CachedDataSource member fields-CS_)
-	<!--mark: 3,4-->
-	````C#
-	public abstract class CachedDataSource
-	{
-	  private readonly ObjectCache cacheProvider;
-	  private readonly string regionName;
-	}
-	````
-
-1. Now, define a constructor that receives an object cache and a region name as parameters, as shown (highlighted) below.
-
-	(Code Snippet - _BuildingAppsWithCachingService-Ex3-CachedDataSource constructor-CS_)
-	<!--mark: 4-18-->
-	````C#
-	public abstract class CachedDataSource
-	{
-	  ...
-	  public CachedDataSource(ObjectCache cacheProvider, string regionName)
-	  {
-	    if (cacheProvider == null)
-	    {
-	      throw new ArgumentNullException("cacheProvider");
-	    }
-	
-	    if (cacheProvider is MemoryCache)
-	    {
-	      regionName = null;
-	    }
-	
-	    this.cacheProvider = cacheProvider;
-	    this.regionName = regionName;
-	  }
-	}
-	````
-
-	>**Note:** The **CachedDataSource** constructor receives an ObjectCache ([http://msdn.microsoft.com/en-us/library/system.runtime.caching.objectcache.aspx](http://msdn.microsoft.com/en-us/library/system.runtime.caching.objectcache.aspx)) instance as a parameter, which provides methods and properties for accessing an object cache, as well as a region name.  A cache region is a partition in the cache used to organize cache objects.
-
-1. Next, add the following (highlighted) method to retrieve data from the cache.
-
-	(Code Snippet - _BuildingAppsWithCachingService-Ex3-RetrieveCachedData method-CS_)
-	<!--mark: 4-19-->
-	````C#
-	public abstract class CachedDataSource
-	{
-	  ...
-	  protected T RetrieveCachedData<T>(string cacheKey, Func<T> fallbackFunction, CacheItemPolicy cachePolicy) where T : class
-	  {
-	    var data = this.cacheProvider.Get(cacheKey, this.regionName) as T;
-	    if (data != null)
-	    {
-	      return data;
-	    }
-	
-	    data = fallbackFunction();
-	    if (data != null)
-	    {
-	      this.cacheProvider.Add(new CacheItem(cacheKey, data, this.regionName), cachePolicy);
-	    }
-	
-	    return data;
-	  }
-	}
-	````
-
-	>**Note:** The **RetrieveCachedData** method uses the provided key to retrieve a copy of the requested item from the cache. If the data is available, it returns it; otherwise, it uses the provided fallback delegate to obtain the information from the data source and then caches the result using the supplied cache expiration policy.
-
-1. Finally, add a method to delete items from the cache.
-
-	(Code Snippet - _BuildingAppsWithCachingService-Ex3-RemoveCachedData method-CS_)
-	<!--mark: 4-7-->
-	````C#
-	public abstract class CachedDataSource
-	{
-	  ...
-	  protected void RemoveCachedData(string cacheKey)
-	  {
-	    this.cacheProvider.Remove(cacheKey, this.regionName);
-	  }
-	}
-	````
-
-1. Save the **CachedDataSource.cs** file.
-
-<a name="Ex3Task2" />
-#### Task 2 – Building a Caching Product Catalog Repository ####
-
-Once you have created an abstract base class for caching data sources, you will now create a concrete implementation that will provide a caching alternative for the **ProductsRepository** class. This task represents the steps you would typically follow when creating a caching layer for your data access code using the **CachedDataSource** class.
-
-1. Inside the **Services\Caching** folder of the **CloudShop** project, add a new class file named **CachedProductsRepository.cs**.
-
-1. In the new class file, append a namespace directive for **System.Runtime.Caching** and **CloudShop.Services**.
-
-	<!-- mark:5-6 -->
-	````C#
-	using System;
-	using System.Collections.Generic;
-	using System.Linq;
-	using System.Web;
-	using CloudShop.Services;
-	using System.Runtime.Caching;
-	...
-	````
-
-1. Change the declaration for the **CachedProductsRepository** class to derive from both **CachedDataSource** and **IProductRepository**, as shown (highlighted) below.
-
-	<!--mark: 2-->
-	````C#
-	public class CachedProductsRepository 
-	  : CachedDataSource, IProductRepository
-	{
-	}
-	````
-
-	>**Note:** The caching data source class derives from **CachedDataSource** to provide the necessary caching behavior, as well as implementing the same contract used by the original data source class.
-
-1. Add the following code to define a constructor and declare a member field that holds a reference to the underlying data source, as shown (highlighted) below.
-
-	(Code Snippet - _BuildingAppsWithCachingService-Ex3-CachedProductsRepository constructor-CS_)
-	<!--mark: 3-9-->
-	````C#
-	public class CachedProductsRepository : CachedDataSource, IProductRepository
-	{
-	  private readonly IProductRepository repository;
-	 
-	  public CachedProductsRepository(IProductRepository repository, ObjectCache cacheProvider) :
-	    base(cacheProvider, "Products")
-	  {
-	    this.repository = repository;
-	  }
-	}
-	````
-
-	>**Note:** The **CachedProductsRepository** constructor initializes its base class using the supplied cache provider and saves a reference to the underlying data source in a member field. The class defines a "_Products_" cache region.
-
-1. Finally, fulfill the **IProductRepository** contract by implementing the **GetProducts** method, as shown (highlighted) below.
-
-	(Code Snippet - _BuildingAppsWithCachingService-Ex3-GetProducts method -CS_)
-	<!--mark: 4-10-->
-	````C#
-	public class CachedProductsRepository : CachedDataSource, IProductRepository
-	{
-	  ...
-	  public List<string> GetProducts()
-	  {
-		return RetrieveCachedData(
-		"allproducts",
-		() => this.repository.GetProducts(),
-		new CacheItemPolicy { AbsoluteExpiration = DateTime.UtcNow.AddMinutes(1) });
-	  }
-	}
-	````
-
-	>**Note:** The **GetProducts** method calls **RetrieveCachedData** in the base class, passing in a key that identifies the cached item, in this case "_allproducts_", a fallback delegate in the form of a lambda expression that simply calls the **GetProducts** method in the original data source, and a [CacheItemPolicy](http://msdn.microsoft.com/en-us/library/system.runtime.caching.cacheitempolicy.aspx) to set the expiration of the item to 1 minute.
-
-	Because the **IProductRepository** contract is so simple, this is all that is required to provide a caching implementation. Typically, your data sources will have more than one method, but the basic approach should not change, allowing you to implement every method by copying this same pattern.
-
-<a name="Ex3Task3" />
-#### Task 3 – Creating a Data Source Factory Class ####
-
-In this task, you will create a factory class that can return data source instances. The factory determines the cache provider to use from the application configuration settings and returns a data source suitably configured to use the chosen cache provider.
-
-1. Add a copy of the **AzureCacheProvider.cs** file located in the **\\Source\\Assets** folder to the **CloudShop** project and place it in its **Services\Caching** folder.
-
-	>**Note:** The **AzureCacheProvider** class implements an **ObjectCache** that wraps the services provided by the Windows Azure Cache Service.
-
-1. Inside the **Services** folder of the **CloudShop** project, add a new class file named **DataSourceFactory.cs**.
-
-1. In the new class file, insert namespace directives for **System.Configuration**, **System.Runtime.Caching**, **CloudShop.Services** and **CloudShop.Services.Caching**.
-
-	(Code Snippet - _BuildingAppsWithCachingService-Ex3-DataSourceFactory namespaces-CS_)
-	<!--mark: 5-8-->
-	````C#
-	using System;
-	using System.Collections.Generic;
-	using System.Linq;
-	using System.Web;
-	using System.Configuration;
-	using System.Runtime.Caching;
-	using CloudShop.Services;
-	using CloudShop.Services.Caching;
-	````
-
-1. Now, add the following code to define a type constructor for the **DataSourceFactory** class and declare a static field that holds a reference to the configured cache service provider, as shown (highlighted) below.
-
-	(Code Snippet - _BuildingAppsWithCachingService-Ex3-DataSourceFactory class constructor-CS_)
-	<!--mark: 3-20-->
-	````C#
-	public class DataSourceFactory
-	{
-	  private static readonly ObjectCache cacheProvider;
-	
-	  static DataSourceFactory()
-	  {
-	    string provider = ConfigurationManager.AppSettings["CacheService.Provider"];
-	    if (provider != null)
-	    {
-	      switch (ConfigurationManager.AppSettings["CacheService.Provider"].ToUpperInvariant())
-	      {
-	        case "AZURE":
-	          cacheProvider = new AzureCacheProvider();
-	          break;
-	        case "INMEMORY":
-	          cacheProvider = MemoryCache.Default;
-	          break;
-	      }
-	    }
-	  }
-	}
-	````
-
-	>**Note:** The class constructor reads the _CacheService.Provider_ setting from the configuration and initializes the cache provider for the application based on its value. In this example, two different values for the setting are recognized, one for the Windows Azure Caching and another one for the default in-memory cache provider offered by the .NET Framework 4.
-
-
-1. Next, add the following property to return the configured cache service provider.
-
-	(Code Snippet - _BuildingAppsWithCachingService-Ex3-CacheProvider property-CS_)
-	<!--mark: 4-7-->
-	````C#
-	public class DataSourceFactory
-	{
-	  ...
-	  public static ObjectCache CacheProvider
-	  {
-	    get { return cacheProvider; }
-	  }
-	}
-	````
-
-1. Finally, add a method to return an instance of the **IProductRepository** data source initialized with the configured cache service provider.
-
-	(Code Snippet - _BuildingAppsWithCachingService-Ex3-GetProductsRepository method-CS_)
-	<!--mark: 4-13-->
-	````C#
-	public class DataSourceFactory
-	{
-	  ...
-	  public static IProductRepository GetProductsRepository(bool enableCache)
-	  {
-	    var dataSource = new ProductsRepository();
-	    if (enableCache && CacheProvider != null)
-	    {
-	      return new CachedProductsRepository(dataSource, cacheProvider);
-	    }
-	
-	    return dataSource;
-	  }
-	}
-	````
-
-<a name="Ex3Task4" />
-#### Task 4 – Configuring the Application for Caching ####
-
-In this task, you will update the application to take advantage of the data source factory to instantiate the product catalog data source. To complete the setup of the caching layer, you will define the necessary configuration settings to select a caching provider.
-
-1. Open the **HomeController.cs** file in the **Controllers** folder and find the **Index** method. Inside this method, replace the line that initializes the **productRepository** local variable with the code shown (highlighted) below that uses the **DataSourceFactory** to retrieve an **IProductRepository** instance.
-
-	<!--mark: 10-->
-	````C#
-	public class HomeController : Controller
-	{
-	  ...
-	  public ActionResult Index()
-	  {
-		bool enableCache = (bool)this.Session["EnableCache"];
-	
-		// retrieve product catalog from repository and measure the elapsed time
-		Services.IProductRepository productRepository =
-		CloudShop.Services.DataSourceFactory.GetProductsRepository(enableCache);
-		Stopwatch stopWatch = new Stopwatch();
-		stopWatch.Start();
-		...
-	  }
-	  ...
-	}
-	````
-
-1. To configure the **DataSourceFactory**, open the **Web.config** file and add the following (highlighted) setting to the **appSettings** section.
-
-	(Code Snippet - _BuildingAppsWithCachingService-Ex3-Web.config appSettings section-CS_)
-	<!--mark: 3-->
-	````XML
-	  <appSettings>
-		 ...
-	    <add key="CacheService.Provider" value="InMemory" />
-	  </appSettings>
-	````
-
-	>**Note:** If you host the application in a single node, the in-memory cache provider would be a good choice.
-
-1. Press **CTRL+F5** to build and test the enhanced caching implementation in the compute emulator.
-
-1. When you start the application, the cache is initially disabled. Click **Yes** in **Enable Cache** and wait for the page to refresh. Remember that the initial request after you enable the cache includes the overhead required to retrieve the data and insert it into the cache.
-
-1. Click **Products**, or refresh the page in the browser once again. This time, the application retrieves the product data from the cache and the elapsed time should be lower, most likely under a millisecond given that you have currently configured it to use the in-memory cache provided by the .NET Framework.
-
-1. Now, in the **Web.config** file, locate the **appSettings** section and set the value of the **CacheService.Provider** setting to _Azure_.
-
-	<!--mark: 3-->
-	````XML
-	  <appSettings>
-			  ...
-	        <add key="CacheService.Provider" value="Azure" />
-	  </appSettings>
-	````
-
-	>**Note:** If you host the application in multiple nodes, the in-memory cache provider is no longer a good choice. Instead, you can take advantage of the distributed cache offered by the Windows Azure Caching.
-
-1. Save the **Web.config** file.
-
-1. Click the **Recycle** link to recycle the role and reload the configuration. Once you click on the link, the Products page will turn blank.
-
-1. Got back to browser, remove _/Home/Recylce_ from address bar, and then press Enter to reload the site. The **Products** page should come back normal after a short delay.
-
-1. Make sure that the cache is still enabled and then refresh the page in the browser **twice** to prime the cache with data. Notice that the elapsed times for the cached scenario have increased indicating that the application is now using the Windows Azure Caching provider instead of the in-memory provider.
-
----
-
-<a name="Summary" />
-## Summary ##
-
-In this hands-on lab, you explored the use of the Windows Azure Caching. You saw how to configure session state to be cached across a cache cluster, allowing sessions to be preserved in the presence of restarts and across multiple role instances hosting the application. In addition, you learnt the basics of data caching with Windows Azure and in particular, how to cache the results of queries to a Windows Azure SQL Database. Finally, you looked at a reusable caching layer implementation that will allow you to add a caching layer to your applications in a very simple manner.
+1.  В обозревателе решений разверните узел **CloudShop.Azure** и щелкните правой кнопкой мыши пункт **Roles** (Роли). Выберите **Add**-&gt;**New Worker Role Project...*** (Добавить&nbsp;&mdash; Создать проект рабочей роли).
+2.  В диалоговом окне **Add New Role Project** (Добавить новый проект роли) выберите шаблон **Cache Worker Role** (Рабочая роль кэширования). Присвойте роли имя **CacheWorkerRole** и щелкните **Add** (Добавить).
+> **Примечание.** Все узлы кэширования облачной службы совместно используют состояния среды выполнения с&nbsp;помощью хранилища BLOB-объектов Windows Azure. По умолчанию рабочая роль кэширования настроена на использование хранилища разработки. Эти настройки можно изменить на вкладке **Caching** (Кэширование) страницы свойств роли.
+
+<a name="Ex1Task3"></a>
+
+#### Задание 3. Изменение состояния сеанса с помощью службы кэширования Windows Azure
+
+В этом задании мы настроим поставщика состояния сеанса так, чтобы в качестве механизма хранения использовалась служба Windows Azure. Для этого необходимо добавить некоторые сборки в проект **CloudShop** и обновить соответствующие настройки в файле **Web.config**. 
+
+1.  В среде Visual Studio&nbsp;2012 Express for Web откройте **Package manager Console** (Консоль диспетчера пакетов) в меню **Tools**-&gt;**Library package Manager**-&gt;**Package Manager Console** (Инструменты&nbsp;&mdash; Диспетчер пакетов библиотеки&nbsp;&mdash; Консоль диспетчера пакетов).
+
+2.  Убедитесь, что в раскрывающемся списке **Default project** (Проект по умолчанию) выбран пункт **CloudShop**. Чтобы установить пакет Nuget для службы кэширования, введите следующую команду:
+<span class="codelanguage">PowerShell</span>
+
+        Install-package Microsoft.WindowsAzure.Caching    `</pre>
+3.  Откройте файл **Web.config**, расположенный в корневом каталоге проекта **CloudShop**.
+4.  Замените строку **[cache cluster role name]** (имя роли кластера кэша) на **CacheWorkerRole**.
+    <!--mark: 4   -->
+    <span class="codelanguage">XML</span><pre>`<span style="color:#0000FF">&lt;</span><span style="color:#800000">dataCacheClients</span><span style="color:#0000FF">&gt;</span>
+     <span style="color:#0000FF">&lt;</span><span style="color:#800000">tracing</span> <span style="color:#FF0000">sinkType</span>=<span style="color:#0000FF">&quot;DiagnosticSink&quot;</span> <span style="color:#FF0000">traceLevel</span>=<span style="color:#0000FF">&quot;Error&quot;</span> <span style="color:#0000FF">/&gt;</span>
+      <span style="color:#0000FF">&lt;</span><span style="color:#800000">dataCacheClient</span> <span style="color:#FF0000">name</span>=<span style="color:#0000FF">&quot;default&quot;</span><span style="color:#0000FF">&gt;</span>
+    **   <span style="color:#0000FF">&lt;</span><span style="color:#800000">autoDiscover</span> <span style="color:#FF0000">isEnabled</span>=<span style="color:#0000FF">&quot;true&quot;</span> <span style="color:#FF0000">identifier</span>=<span style="color:#0000FF">&quot;CacheWorkerRole&quot;</span> <span style="color:#0000FF">/&gt;</span>**
+      <span style="color:#008000">&lt;!--&lt;localCache isEnabled=&quot;true&quot; sync=&quot;TimeoutBased&quot; objectCount=&quot;100000&quot; ttlValue=&quot;300&quot; /&gt;--&gt;</span>
+      <span style="color:#0000FF">&lt;/</span><span style="color:#800000">dataCacheClient</span><span style="color:#0000FF">&gt;</span>
+    <span style="color:#0000FF">&lt;/</span><span style="color:#800000">dataCacheClients</span><span style="color:#0000FF">&gt;</span>
+      ...
+    `</pre>
+5.  Добавьте настройки нового поставщика состояния сеанса в раздел, обозначенный тегом System.Web.    <span class="codelanguage">XML</span><pre>`<span style="color:#0000FF">&lt;</span><span style="color:#800000">system.Web</span><span style="color:#0000FF">&gt;</span>
+    ...
+    <span style="color:#0000FF">&lt;</span><span style="color:#800000">sessionState</span> <span style="color:#FF0000">mode</span>=<span style="color:#0000FF">&quot;Custom&quot;</span> <span style="color:#FF0000">customProvider</span>=<span style="color:#0000FF">&quot;NamedCacheBProvider&quot;</span><span style="color:#0000FF">&gt;</span>
+      <span style="color:#0000FF">&lt;</span><span style="color:#800000">providers</span><span style="color:#0000FF">&gt;</span>
+        <span style="color:#0000FF">&lt;</span><span style="color:#800000">add</span> <span style="color:#FF0000">cacheName</span>=<span style="color:#0000FF">&quot;default&quot;</span> <span style="color:#FF0000">name</span>=<span style="color:#0000FF">&quot;NamedCacheBProvider&quot;</span>             <span style="color:#FF0000">dataCacheClientName</span>=<span style="color:#0000FF">&quot;default&quot;</span> <span style="color:#FF0000">applicationName</span>=<span style="color:#0000FF">&quot;MyApp&quot;</span>             <span style="color:#FF0000">type</span>=<span style="color:#0000FF">&quot;Microsoft.Web.DistributedCache.DistributedCacheSessionStateStoreProvider, Microsoft.Web.DistributedCache&quot;</span> <span style="color:#0000FF">/&gt;</span>
+      <span style="color:#0000FF">&lt;/</span><span style="color:#800000">providers</span><span style="color:#0000FF">&gt;</span>
+    <span style="color:#0000FF">&lt;/</span><span style="color:#800000">sessionState</span><span style="color:#0000FF">&gt;</span>
+    ...
+    <span style="color:#0000FF">&lt;/</span><span style="color:#800000">system.web</span><span style="color:#0000FF">&gt;</span>
+    `</pre>
+6.  Нажмите клавиши **CTRL+S**, чтобы сохранить изменения, внесенные в файл **Web.config**.
+
+    <a name="Ex1Task4"></a>
+
+    #### Задание 4. Проверка
+
+1.  Нажмите клавиши **CTRL+F5**, чтобы создать и запустить приложение. Дождитесь открытия страницы **Products** в браузере.2.  Выберите продукт из списка и щелкните Add item to cart (Добавить в корзину). Повторите действие и добавьте в корзину несколько элементов.
+3.  Щелкните ссылку **Checkout**, чтобы просмотреть содержимое корзины. Проверьте, содержит ли список выбранные вами элементы.
+4.  Перейдите обратно на страницу **Products** и щелкните ссылку &quot;Recycle&quot;.
+5.  Выбрав пункт меню **Show Compute Emulator UI** (Отобразить интерфейс эмулятора вычислений), вы можете наблюдать перезапуск веб-роли.6.  Снова откройте браузер, удалите _/Home/Recycle_ из адресной строки и нажмите клавишу ВВОД, чтобы перезапустить сайт.
+7.  **Страница Products** должна отобразиться корректно. Перейдите на страницу **Checkout**. Обратите внимание, что содержимое заказа не изменилось. При использовании поставщика кэша Windows Azure состояние сеанса хранится вне экземпляра роли и сохраняется при перезапуске приложения.
+    > **Примечание.** Для приложения, размещенного на нескольких серверах или в нескольких экземплярах роли Windows Azure (в этом случае обращенные к приложению запросы распределяются балансировщиком нагрузки), данные о сеансе клиента сохранятся вне зависимости от того, какой экземпляр отвечает на запрос.
+8.  Закройте окно браузера, чтобы остановить приложение.
+
+    <a name="Exercise2"></a>
+
+    ### Упражнение 2. Кэширование данных с помощью службы кэширования Windows Azure
+
+    В этом упражнении мы рассмотрим использование службы кэширования Windows Azure для кэширования результатов запросов к базе данных Windows Azure SQL. Мы продолжим работу с решением из предыдущего упражнения. Единственное отличие состоит в изменении домашней страницы&nbsp;&mdash; теперь она отображает время, затраченное на получение списка продуктов из каталога, и содержит ссылку, позволяющую включить и отключить функцию кэширования. При выполнении упражнения мы дополним программный код доступа к данным простой реализацией функции кэширования. Кэширование происходит по стандартной схеме. Сначала программа пытается получить данные из кэша. При отсутствии запрашиваемых данных в кэше программа обращается к базе данных и кэширует результаты запроса.
+
+    <a name="Ex2Task1"></a>
+
+    #### Задание 1. Кэширование данных, предоставленных службой SQL Reporting
+
+    Чтобы использовать службу кэширования Windows Azure, необходимо создать объект **DataCacheFactory**. В этом объекте хранятся данные о подключении к кластеру кэша. Настройки объекта задаются программно или считываются из файла конфигурации. Обычно в приложении создается экземпляр класса фабрики, который используется на протяжении всего времени существования приложения. Чтобы сохранить данные в кэше, необходимо запросить экземпляр **DataCache** у фабрики **DataCacheFactory** и использовать его для добавления данных в кэш и получения данных из кэша. В этом задании мы обновим программный код доступа к данным и обеспечим кэширование результатов запросов к базе данных Windows Azure SQL с помощью службы кэширования Windows Azure. 
+
+1.  Запустите **Microsoft Visual Studio 2012 Express for Web** от имени администратора.
+2.  Откройте решение **Begin** из каталога **Source\Ex2-CachingData\Begin**.
+    > **Важно!** Перед запуском решения убедитесь, что начальный проект установлен. Для проектов MVC начальная страница должна быть пустой. Чтобы указать начальный проект, откройте **обозреватель решений**, щелкните правой кнопкой мыши проект **CloudShop.Azure** и выберите **Set as StartUp Project** (Использовать в качестве начального проекта). Чтобы настроить начальную страницу, откройте **обозреватель решений**, щелкните правой кнопкой мыши проект **CloudShop** и выберите **Properties** (Свойства). В окне **Properties** выберите вкладку **Web** (Интернет). В списке **Start Action** (Начальное действие) выберите **Specific Page** (Определенная страница). Оставьте это поле пустым.
+3.  Откройте файл **Web.config** и обновите строку подключения _NorthwindEntities_, создав ссылку на базу данных. Замените строки **[YOUR-SQL-DATABASE-SERVER-ADDRESS]**, **[SQL-DATABASE-USERNAME]** и **[SQL-DATABASE-PASSWORD]** на имя сервера Windows Azure SQL Database, имя пользователя с правами администратора и пароль администратора, который вы использовали для регистрации на портале и создания базы данных при начальной установке.
+    > **Примечание.**     Следуя инструкции по установке, необходимо создать копию базы данных Northwind2 для вашей учетной записи базы данных Windows Azure SQL, а также настроить брандмауэр базы данных Windows Azure SQL.
+4.  Откройте файл **ProductsRepository.cs**, расположенный в каталоге **Services** проекта **CloudShop**.
+5.  Добавьте директиву пространства имен для **Microsoft.ApplicationServer.Caching**.
+    <!--mark: 5   -->
+    <span class="codelanguage">C#</span><pre>`<span style="color:#0000FF">using</span> System;
+    <span style="color:#0000FF">using</span> System.Collections.Generic;
+    <span style="color:#0000FF">using</span> System.Linq;
+    <span style="color:#0000FF">using</span> CloudShop.Models;
+    **<span style="color:#0000FF">using</span> Microsoft.ApplicationServer.Caching;**
+    ...
+    `</pre>
+6.  Добавьте выделенный код в класс **ProductsRepository**. Этот код определяет конструктор и объявляет статическую переменную для экземпляра объекта **DataCacheFactory** в дополнение к логической переменной экземпляра, обеспечивая включение и выключение функции кэширования.
+    (Фрагмент кода&nbsp;&mdash; _BuildingAppsWithCachingService-Ex2-ProductsRepository constructor-CS_)
+    <!--mark: 3-9   -->
+    <span class="codelanguage">C#</span><pre>`<span style="color:#0000FF">public</span> <span style="color:#0000FF">class</span> ProductsRepository : IProductRepository    {
+    **  <span style="color:#0000FF">private</span> <span style="color:#0000FF">static</span> DataCacheFactory cacheFactory = <span style="color:#0000FF">new</span> DataCacheFactory();**
+    **  <span style="color:#0000FF">private</span> <span style="color:#0000FF">bool</span> enableCache = <span style="color:#0000FF">false</span>;**
+    **  <span style="color:#0000FF">public</span> ProductsRepository(<span style="color:#0000FF">bool</span> enableCache)**
+    **  {**
+    **    <span style="color:#0000FF">this</span>.enableCache = enableCache;**
+    **  }**
+      <span style="color:#0000FF">public</span> List&lt;<span style="color:#0000FF">string</span>&gt; GetProducts()
+      {
+        ...
+      }
+    }
+    `</pre>
+    > **Примечание.** Объект **DataCacheFactory** объявлен как статический и используется на протяжении всего времени существования приложения.
+7.  Найдите метод **GetProducts** и добавьте в него следующий (выделенный) код сразу после строки, объявляющей локальную переменную **products**.
+    (Фрагмент кода&nbsp;&mdash; _BuildingAppsWithCachingService-Ex2-GetProducts read cache-CS_)
+    <!--mark: 8-30   -->
+    <span class="codelanguage">C#</span><pre>`<span style="color:#0000FF">public</span> <span style="color:#0000FF">class</span> ProductsRepository : IProductRepository
+    {
+      ...
+      <span style="color:#0000FF">public</span> List&lt;<span style="color:#0000FF">string</span>&gt; GetProducts()
+      {
+        List&lt;<span style="color:#0000FF">string</span>&gt; products = <span style="color:#0000FF">null</span>;
+    **    DataCache dataCache = <span style="color:#0000FF">null</span>;**
+    **    <span style="color:#0000FF">if</span> (<span style="color:#0000FF">this</span>.enableCache)**
+    **    {**
+    **      <span style="color:#0000FF">try</span>**
+    **      {**
+    **        dataCache = cacheFactory.GetDefaultCache();**
+    **        products = dataCache.Get(<span style="color:#8B0000">&quot;products&quot;</span>) <span style="color:#0000FF">as</span> List&lt;<span style="color:#0000FF">string</span>&gt;;**
+    **        <span style="color:#0000FF">if</span> (products != <span style="color:#0000FF">null</span>)**
+    **        {**
+    **          products[0] = <span style="color:#8B0000">&quot;(from cache)&quot;</span>;**
+    **          <span style="color:#0000FF">return</span> products;**
+    **        }**
+    **      }**
+    **      <span style="color:#0000FF">catch</span> (DataCacheException ex)**
+    **      {**
+    **        <span style="color:#0000FF">if</span> (ex.ErrorCode != DataCacheErrorCode.RetryLater)**
+    **        {**
+    **          <span style="color:#0000FF">throw</span>;**
+    **        }**
+    **        <span style="color:#008000">// игнорировать временные сбои</span>**
+    **      }**
+    **    }**
+        NorthwindEntities context = <span style="color:#0000FF">new</span> NorthwindEntities();
+        <span style="color:#0000FF">try</span>
+        {
+          <span style="color:#0000FF">var</span> query = from product <span style="color:#0000FF">in</span> context.Products
+                      select product.ProductName;
+          products = query.ToList();
+        }
+        <span style="color:#0000FF">finally</span>
+        {
+          <span style="color:#0000FF">if</span> (context != <span style="color:#0000FF">null</span>)
+          {
+            context.Dispose();
+          }
+        }
+        <span style="color:#0000FF">return</span> products;
+      }
+    }
+    `</pre>
+    > **Примечание.** Добавленный фрагмент кода использует объект **DataCacheFactory** для получения экземпляра объекта кэширования, принятого по умолчанию. Затем производится попытка получения данных из этого кэша с&nbsp;помощью ключа со значением &quot;_products_&quot;. Если в кэше содержится объект с запрошенным ключом, то список возвращается. При этом текст первой записи будет содержать сведения о том, что список получен из кэша. Временные сбои службы кэширования Windows Azure обрабатываются как промахи кэша. В этом случае данные будут извлечены не из кэша, а из источника данных.
+8.  Теперь добавьте выделенный блок кода в метод **GetProducts** непосредственно перед расположенной в конце метода строкой, возвращающей список **products**.
+    (Фрагмент кода&nbsp;&mdash; _BuildingAppsWithCachingService-Ex2-GetProducts write cache-CS_)
+    <!--mark: 30-35   -->
+    <span class="codelanguage">C#</span><pre>`<span style="color:#0000FF">public</span> <span style="color:#0000FF">class</span> ProductsRepository : IProductRepository
+    {
+        ...
+        <span style="color:#0000FF">public</span> List&lt;<span style="color:#0000FF">string</span>&gt; GetProducts()
+        {
+            List&lt;<span style="color:#0000FF">string</span>&gt; products = <span style="color:#0000FF">null</span>;
+            DataCache dataCache = <span style="color:#0000FF">null</span>;
+            <span style="color:#0000FF">if</span> (<span style="color:#0000FF">this</span>.enableCache)
+            {
+              ...
+            }
+            NorthwindEntities context = <span style="color:#0000FF">new</span> NorthwindEntities();
+            <span style="color:#0000FF">try</span>
+            {
+              <span style="color:#0000FF">var</span> query = from product <span style="color:#0000FF">in</span> context.Products
+                         select product.ProductName;
+              products = query.ToList();
+            }
+            <span style="color:#0000FF">finally</span>
+            {
+              <span style="color:#0000FF">if</span> (context != <span style="color:#0000FF">null</span>)
+              {
+                context.Dispose();
+              }
+            }
+    **        products.Insert(0, <span style="color:#8B0000">&quot;(from data source)&quot;</span>);**
+    **        <span style="color:#0000FF">if</span> (<span style="color:#0000FF">this</span>.enableCache &amp;&amp; dataCache != <span style="color:#0000FF">null</span>)**
+    **        {**
+    **          dataCache.Add(<span style="color:#8B0000">&quot;products&quot;</span>, products, TimeSpan.FromSeconds(30));**
+    **        }**
+            <span style="color:#0000FF">return</span> products;
+        }
+    }
+    `</pre>
+    > **Примечание.** Добавленный код сохраняет в кэше результаты запроса к источнику данных и определяет политику окончания срока действия, обеспечивая удаление данных из кэша через 30&nbsp;секунд.
+
+    <a name="Ex2Task2"></a>
+
+    #### Задание 2. Измерение задержки доступа к данным
+
+    В этом задании мы обновим приложение и создадим пользовательский интерфейс для включения и выключения функции кэширования, а также для отображения времени, затраченного на получение данных каталога. Это позволит сравнить задержку получения данных из кэша и источника данных.
+
+1.  Откройте файл **HomeController.cs** из каталога **Controllers** и добавьте **System.Diagnostics**, используя директиву в начале файла.
+    <!-- mark:1    -->
+    <span class="codelanguage">C#</span><pre>`**<span style="color:#0000FF">using</span> System.Diagnostics;**
+    `</pre>
+2.  Найдите действие **Index**. Перейдите к строкам, создающим экземпляр **ProductsRepository** и вызывающим его метод **GetProducts**. Замените эти строки выделенным фрагментом кода, как показано ниже.
+    (Фрагмент кода&nbsp;&mdash; _BuildingAppsWithCachingService-Ex2-GetProducts latency-CS_)
+    <!--mark: 9-17; strike:6-8   -->
+    <span class="codelanguage">C#</span><pre>`<span style="color:#0000FF">public</span> <span style="color:#0000FF">class</span> HomeController : Controller
+    {
+      ...      <span style="color:#0000FF">public</span> ActionResult Index()
+      {
+    <span class="strikeLine" style="text-decoration:line-through;">    Services.IProductRepository productRepository =</span>
+    <span class="strikeLine" style="text-decoration:line-through;">        <span style="color:#0000FF">new</span> Services.ProductsRepository();</span>
+    <span class="strikeLine" style="text-decoration:line-through;">    <span style="color:#0000FF">var</span> products = productRepository.GetProducts();</span>
+    **    <span style="color:#0000FF">bool</span> enableCache = (<span style="color:#0000FF">bool</span>)<span style="color:#0000FF">this</span>.Session[<span style="color:#8B0000">&quot;EnableCache&quot;</span>];**
+    **    <span style="color:#008000">// получить каталог продуктов из репозитория и измерить затраченное время</span>**
+    **    Services.IProductRepository productRepository =**
+    **        <span style="color:#0000FF">new</span> Services.ProductsRepository(enableCache);**
+    **    Stopwatch stopWatch = <span style="color:#0000FF">new</span> Stopwatch();**
+    **    stopWatch.Start();**
+    **    <span style="color:#0000FF">var</span> products = productRepository.GetProducts();**
+    **    stopWatch.Stop();**
+        <span style="color:#008000">// добавить все продукты, не сохраненные в сеансе</span>
+        <span style="color:#0000FF">var</span> itemsInSession = <span style="color:#0000FF">this</span>.Session[<span style="color:#8B0000">&quot;Cart&quot;</span>] <span style="color:#0000FF">as</span> List&lt;<span style="color:#0000FF">string</span>&gt; ?? <span style="color:#0000FF">new</span> List&lt;<span style="color:#0000FF">string</span>&gt;();
+        <span style="color:#0000FF">var</span> filteredProducts = products.Where(item =&gt; !itemsInSession.Contains(item));
+        IndexViewModel model = <span style="color:#0000FF">new</span> IndexViewModel()
+        {
+          Products = filteredProducts
+        };
+        <span style="color:#0000FF">return</span> View(model);
+      }
+      ...
+    }
+    `</pre>
+3.  В том же методе найдите код, создающий экземпляр **IndexViewModel**, и замените его инициализацию следующим (выделенным) блоком.
+    (Фрагмент кода&nbsp;&mdash; _BuildingAppsWithCachingService-Ex2-IndexViewModel initialization-CS_)
+    <!--mark: 22-25   -->
+    <span class="codelanguage">C#</span><pre>`<span style="color:#0000FF">public</span> <span style="color:#0000FF">class</span> HomeController : Controller
+    {
+      ...      <span style="color:#0000FF">public</span> ActionResult Index()
+      {
+        <span style="color:#0000FF">bool</span> enableCache = (<span style="color:#0000FF">bool</span>)<span style="color:#0000FF">this</span>.Session[<span style="color:#8B0000">&quot;EnableCache&quot;</span>];
+        <span style="color:#008000">// получить каталог продуктов из репозитория и измерить затраченное время</span>
+        Services.IProductRepository productRepository =
+            <span style="color:#0000FF">new</span> Services.ProductsRepository(enableCache);
+        Stopwatch stopWatch = <span style="color:#0000FF">new</span> Stopwatch();
+        stopWatch.Start();
+        <span style="color:#0000FF">var</span> products = productRepository.GetProducts();
+        stopWatch.Stop();
+        <span style="color:#008000">// добавить все продукты, не сохраненные в сеансе</span>
+        <span style="color:#0000FF">var</span> itemsInSession = <span style="color:#0000FF">this</span>.Session[<span style="color:#8B0000">&quot;Cart&quot;</span>] <span style="color:#0000FF">as</span> List&lt;<span style="color:#0000FF">string</span>&gt; ?? <span style="color:#0000FF">new</span> List&lt;<span style="color:#0000FF">string</span>&gt;();
+        <span style="color:#0000FF">var</span> filteredProducts = products.Where(item =&gt; !itemsInSession.Contains(item));
+        IndexViewModel model = <span style="color:#0000FF">new</span> IndexViewModel()
+        {
+    **      Products = filteredProducts,**
+    **      ElapsedTime = stopWatch.ElapsedMilliseconds,**
+    **      IsCacheEnabled = enableCache,**
+    **      ObjectId = products.GetHashCode().ToString()**
+        };
+        <span style="color:#0000FF">return</span> View(model);
+      }
+      ...
+    }
+    `</pre>
+    > **Примечание.** Добавленные в модель представления элементы позволяют выводить на экран время, затраченное на загрузку каталога продуктов из репозитория, флаг, отображающий включение функции кэширования, и идентификатор объекта каталога, возвращаемый при вызове **GetProducts**. Представление отображает идентификатор объекта. Это дает возможность определить, изменились ли данные, полученные при обращении к каталогу. Эта функция будет использована далее при включении локального кэша.
+4.  Чтобы включать и отключать функцию кэширование через интерфейс приложения, добавим к объекту **HomeController** новый метод действия.
+    (Фрагмент кода&nbsp;&mdash; _BuildingAppsWithCachingService-Ex2-EnableCache method-CS_)
+    <!--mark: 4-8   -->
+    <span class="codelanguage">C#</span><pre>`<span style="color:#0000FF">public</span> <span style="color:#0000FF">class</span> HomeController : Controller
+    {
+      ...
+    **  <span style="color:#0000FF">public</span> ActionResult EnableCache(<span style="color:#0000FF">bool</span> enabled)**
+    **  {**
+    **    <span style="color:#0000FF">this</span>.Session[<span style="color:#8B0000">&quot;EnableCache&quot;</span>] = enabled;**
+    **    <span style="color:#0000FF">return</span> RedirectToAction(<span style="color:#8B0000">&quot;Index&quot;</span>);**
+    **  }**
+     }
+    `</pre>
+5.  Нажмите клавишу **F5**, чтобы выполнить построение и запустить приложение в эмуляторе вычислений.
+    > **Примечание.** Рекомендуется протестировать программный код в среде Windows Azure. При запуске приложения в эмуляторе вычислений, для обращения к базе данных Windows Azure SQL и службе кэширования Windows Azure, необходимо выполнение запросов к ресурсам, расположенным за пределами вашей локальной сети. При определенном географическом расположении вашей локальной сети выполнение запросов к этим службам может занять много времени. В этом случае задержка не позволит наглядно продемонстрировать преимущества использования кэша. При развертывании приложения в среде Windows Azure оно будет размещено в том же центре обработки данных, что и служба кэширования базы данных Windows Azure SQL. Задержка при выполнении запроса в этом случае будет намного меньше. Это позволит получить более наглядные результаты.
+6.  При запуске приложения функция кэширования первоначально отключена. Обновите страницу. Обратите внимание, что внизу страницы отображается время, затраченное на получение каталога продуктов. Первый элемент списка содержит сведения о том, что приложение получило данные каталога из источника данных.
+    > **Примечание.** Для получения корректных данных может потребоваться многократное обновление страницы. При обработке первого запроса может отображаться завышенное значение задержки, так как ASP.NET необходимо скомпилировать страницу.
+    ![Запуск приложения с отключенной функцией кэширования](Images/running-the-application-without-the-cache.png?raw=true "Запуск приложения с отключенной функцией кэширования")
+    _Запуск приложения с отключенной функцией кэширования_
+7.  Обратите внимание на индикатор **Object ID** (Идентификатор объекта), отображаемый в верхней части каталога продуктов. Этот идентификатор меняется при каждом обновлении страницы, так как при каждом вызове репозиторий возвращает новый объект.
+8.  Щелкните **Yes** (Да) в поле **Enable Cache** (Включить кэш) и дождитесь обновления страницы. Обратите внимание: первый элемент списка по-прежнему содержит сведения о том, что приложение получило данные каталога из источника данных, так как этих данных еще не было в кэше.
+9.  Щелкните ссылку **Products** или обновите страницу в браузере. На этот раз приложение получит данные от службы кэширования Windows Azure и время задержки должно уменьшиться. Теперь первый элемент списка содержит сведения о том, что приложение получило данные каталога из кэша.
+    ![Запуск приложения с включенной функцией кэширования](Images/running-the-application-with-the-cache-enable.png?raw=true "Запуск приложения с включенной функцией кэширования")
+    _Запуск приложения с включенной функцией кэширования_
+10.  Закройте окно браузера.
+
+    <a name="Ex2Task3"></a>
+
+    #### Задание 3. Включение локального кэша
+
+    Служба кэширования Windows Azure позволяет использовать локальный кэш. При этом объекты хранятся не только в кластере кэша, но и в оперативной памяти клиента. Выполняя это задание, вы включите локальный кэш и сравните время доступа к нему со временем доступа к удаленному кэшу.
+
+1.  Откройте файл **ProductsRepository.cs**, расположенный в каталоге **Services** проекта **CloudShop**.
+    > **Примечание.** Перед редактированием файлов убедитесь, что решение не запущено.
+2.  Добавьте логику управления конфигурацией локального кэша. Для этого перейдите к классу **ProductsRepository** и замените текущие поля членов и код конструктора следующим кодом.
+    (Фрагмент кода&nbsp;&mdash; _BuildingAppsWithCachingService-Ex2-ProductsRepository with local cache-CS_)
+    <!--mark: 2-34   -->
+    <span class="codelanguage">C#</span><pre>`...    **<span style="color:#0000FF">private</span> <span style="color:#0000FF">static</span> DataCacheFactory cacheFactory;**
+    **<span style="color:#0000FF">private</span> <span style="color:#0000FF">static</span> DataCacheFactoryConfiguration factoryConfig;**
+    **<span style="color:#0000FF">private</span> <span style="color:#0000FF">bool</span> enableCache = <span style="color:#0000FF">false</span>;**
+    **<span style="color:#0000FF">private</span> <span style="color:#0000FF">bool</span> enableLocalCache = <span style="color:#0000FF">false</span>;**
+    **<span style="color:#0000FF">public</span> ProductsRepository(<span style="color:#0000FF">bool</span> enableCache, <span style="color:#0000FF">bool</span> enableLocalCache)**
+    **{**
+    **    <span style="color:#0000FF">this</span>.enableCache = enableCache;**
+    **    <span style="color:#0000FF">this</span>.enableLocalCache = enableLocalCache;**
+    **    <span style="color:#0000FF">if</span> (enableCache)**
+    **    {**
+    **        <span style="color:#0000FF">if</span> (enableLocalCache &amp;&amp; (factoryConfig == <span style="color:#0000FF">null</span> || !factoryConfig.LocalCacheProperties.IsEnabled))**
+    **        {**
+    **            TimeSpan localTimeout = <span style="color:#0000FF">new</span> TimeSpan(0, 0, 30);**
+    **            DataCacheLocalCacheProperties localCacheConfig = <span style="color:#0000FF">new</span> DataCacheLocalCacheProperties(10000, localTimeout, DataCacheLocalCacheInvalidationPolicy.TimeoutBased);**
+    **            factoryConfig = <span style="color:#0000FF">new</span> DataCacheFactoryConfiguration();**
+    **            factoryConfig.LocalCacheProperties = localCacheConfig;**
+    **            cacheFactory = <span style="color:#0000FF">new</span> DataCacheFactory(factoryConfig);**
+    **        }**
+    **        <span style="color:#0000FF">else</span> <span style="color:#0000FF">if</span> (!enableLocalCache &amp;&amp; (factoryConfig == <span style="color:#0000FF">null</span> || factoryConfig.LocalCacheProperties.IsEnabled))**
+    **        {**
+    **            cacheFactory = <span style="color:#0000FF">null</span>;**
+    **        }**
+    **    }**
+    **    <span style="color:#0000FF">if</span> (cacheFactory == <span style="color:#0000FF">null</span>)**
+    **    {**
+    **        factoryConfig = <span style="color:#0000FF">new</span> DataCacheFactoryConfiguration();**
+    **        cacheFactory = <span style="color:#0000FF">new</span> DataCacheFactory(factoryConfig);**
+    **    }**
+    **} **
+    ...
+    `</pre>
+3.  Откройте файл **HomeController.cs**, расположенный в каталоге **Controllers** и перейдите к действию **Index**. Найдите строки, создающие новый экземпляр **ProductsRepository**, и замените их выделенным фрагментом кода:
+    (Фрагмент кода&nbsp;&mdash; _BuildingAppsWithCachingService-Ex2-GetProducts LocalCache-CS_)
+    <!--mark: 7-10; strike: 11-13   -->
+    <span class="codelanguage">C#</span><pre>`<span style="color:#0000FF">public</span> <span style="color:#0000FF">class</span> HomeController : Controller
+    {
+      ...      <span style="color:#0000FF">public</span> ActionResult Index()
+      {
+        <span style="color:#0000FF">bool</span> enableCache = (<span style="color:#0000FF">bool</span>)<span style="color:#0000FF">this</span>.Session[<span style="color:#8B0000">&quot;EnableCache&quot;</span>];
+    **    <span style="color:#0000FF">bool</span> enableLocalCache = (<span style="color:#0000FF">bool</span>)<span style="color:#0000FF">this</span>.Session[<span style="color:#8B0000">&quot;EnableLocalCache&quot;</span>];**
+    **    <span style="color:#008000">// получить каталог продуктов из репозитория и измерить затраченное время</span>**
+    **    Services.IProductRepository productRepository = <span style="color:#0000FF">new</span> Services.ProductsRepository(enableCache, enableLocalCache);**
+    <span class="strikeLine" style="text-decoration:line-through;">    <span style="color:#008000">// получить каталог продуктов из репозитория и измерить затраченное время</span></span>
+    <span class="strikeLine" style="text-decoration:line-through;">    Services.IProductRepository productRepository =</span>
+    <span class="strikeLine" style="text-decoration:line-through;">    <span style="color:#0000FF">new</span> Services.ProductsRepository(enableCache);</span>
+        Stopwatch stopwatch = <span style="color:#0000FF">new</span> Stopwatch();
+        stopWatch.Start();
+        <span style="color:#0000FF">var</span> products = productRepository.GetProducts();
+        ...
+    }
+    `</pre>
+4.  В том же методе найдите код, создающий экземпляр **IndexViewModel**, и добавьте следующее выделенное свойство.
+    <!--mark: 25   -->
+    <span class="codelanguage">C#</span><pre>`<span style="color:#0000FF">public</span> <span style="color:#0000FF">class</span> HomeController : Controller
+    {
+      ...      <span style="color:#0000FF">public</span> ActionResult Index()
+      {
+          <span style="color:#0000FF">bool</span> enableCache = (<span style="color:#0000FF">bool</span>)<span style="color:#0000FF">this</span>.Session[<span style="color:#8B0000">&quot;EnableCache&quot;</span>];
+          <span style="color:#0000FF">bool</span> enableLocalCache = (<span style="color:#0000FF">bool</span>)<span style="color:#0000FF">this</span>.Session[<span style="color:#8B0000">&quot;EnableLocalCache&quot;</span>];
+          <span style="color:#008000">// получить каталог продуктов из репозитория и измерить затраченное время</span>
+          Services.IProductRepository productRepository =
+          <span style="color:#0000FF">new</span> Services.ProductsRepository(enableCache, enableLocalCache);
+          Stopwatch stopwatch = <span style="color:#0000FF">new</span> Stopwatch();
+          stopWatch.Start();
+          <span style="color:#0000FF">var</span> products = productRepository.GetProducts();
+          stopWatch.Stop();
+          <span style="color:#008000">// добавить все продукты, не сохраненные в сеансе</span>
+          <span style="color:#0000FF">var</span> itemsInSession = <span style="color:#0000FF">this</span>.Session[<span style="color:#8B0000">&quot;Cart&quot;</span>] <span style="color:#0000FF">as</span> List&lt;<span style="color:#0000FF">string</span>&gt; ?? <span style="color:#0000FF">new</span> List&lt;<span style="color:#0000FF">string</span>&gt;();
+          <span style="color:#0000FF">var</span> filteredProducts = products.Where(item =&gt; !itemsInSession.Contains(item));
+          IndexViewModel model = <span style="color:#0000FF">new</span> IndexViewModel()
+          {
+              Products = filteredProducts,
+              ElapsedTime = stopWatch.ElapsedMilliseconds,
+              IsCacheEnabled = enableCache,
+    **          IsLocalCacheEnabled = enableLocalCache,**
+              ObjectId = products.GetHashCode().ToString()
+          };
+          <span style="color:#0000FF">return</span> View(model);
+      }
+    }
+    `</pre>
+5.  Чтобы включать и отключать функцию локального кэширования через интерфейс приложения, добавим к объекту **HomeController** новый метод действия.
+    (Фрагмент кода&nbsp;&mdash; _BuildingAppsWithCachingService-Ex2-EnableLocalCache method-CS_)
+    <!--mark: 4-8   -->
+    <span class="codelanguage">C#</span><pre>`<span style="color:#0000FF">public</span> <span style="color:#0000FF">class</span> HomeController : Controller
+    {
+      ...
+    **  <span style="color:#0000FF">public</span> ActionResult EnableLocalCache(<span style="color:#0000FF">bool</span> enabled)**
+    **  {**
+    **    <span style="color:#0000FF">this</span>.Session[<span style="color:#8B0000">&quot;EnableLocalCache&quot;</span>] = enabled;**
+    **    <span style="color:#0000FF">return</span> RedirectToAction(<span style="color:#8B0000">&quot;Index&quot;</span>);**
+    **  }**
+    }
+    `</pre>
+6.  Откройте файл **Index.cshtml** из каталога **Views\Home** и добавьте следующий выделенный код перед тегами div раздела **elapsedTime**.
+    (Фрагмент кода&nbsp;&mdash; _BuildingAppsWithCachingService-Ex2-EnableLocalCache Option-HTML_)
+    <!--mark: 12-23   -->
+    <span class="codelanguage">HTML</span><pre>`<span style="color:#0000FF">&lt;</span><span style="color:#800000">fieldset</span><span style="color:#0000FF">&gt;</span>
+         <span style="color:#0000FF">&lt;</span><span style="color:#800000">legend</span><span style="color:#0000FF">&gt;</span>Cache settings for product data<span style="color:#0000FF">&lt;/</span><span style="color:#800000">legend</span><span style="color:#0000FF">&gt;</span>Enable Cache:
+         @if (Model.IsCacheEnabled)
+         {
+              <span style="color:#0000FF">&lt;</span><span style="color:#800000">span</span><span style="color:#0000FF">&gt;</span>Yes |<span style="color:#0000FF">&lt;/</span><span style="color:#800000">span</span><span style="color:#0000FF">&gt;</span><span style="color:#0000FF">&lt;</span><span style="color:#800000">span</span><span style="color:#0000FF">&gt;</span>@Html.ActionLink(&quot;No&quot;, &quot;EnableCache&quot;, new { enabled = false })<span style="color:#0000FF">&lt;/</span><span style="color:#800000">span</span><span style="color:#0000FF">&gt;</span>
+         }
+         else
+         {
+              <span style="color:#0000FF">&lt;</span><span style="color:#800000">span</span><span style="color:#0000FF">&gt;</span>@Html.ActionLink(&quot;Yes&quot;, &quot;EnableCache&quot;, new { enabled = true })<span style="color:#0000FF">&lt;/</span><span style="color:#800000">span</span><span style="color:#0000FF">&gt;</span><span style="color:#0000FF">&lt;</span><span style="color:#800000">span</span><span style="color:#0000FF">&gt;</span> | No<span style="color:#0000FF">&lt;/</span><span style="color:#800000">span</span><span style="color:#0000FF">&gt;</span>
+         }
+         <span style="color:#0000FF">&lt;</span><span style="color:#800000">br</span> <span style="color:#0000FF">/&gt;</span>
+    **     @if(Model.IsCacheEnabled)**
+    **     {**
+    **          <span style="color:#0000FF">&lt;</span><span style="color:#800000">span</span><span style="color:#0000FF">&gt;</span>Use Local Cache:<span style="color:#0000FF">&lt;/</span><span style="color:#800000">span</span><span style="color:#0000FF">&gt;</span>**
+    **          if (Model.IsLocalCacheEnabled)**
+    **          {**
+    **                <span style="color:#0000FF">&lt;</span><span style="color:#800000">span</span><span style="color:#0000FF">&gt;</span>Yes |<span style="color:#0000FF">&lt;/</span><span style="color:#800000">span</span><span style="color:#0000FF">&gt;</span><span style="color:#0000FF">&lt;</span><span style="color:#800000">span</span><span style="color:#0000FF">&gt;</span>@Html.ActionLink(&quot;No&quot;, &quot;EnableLocalCache&quot;, new { enabled = false })<span style="color:#0000FF">&lt;/</span><span style="color:#800000">span</span><span style="color:#0000FF">&gt;</span>**
+    **          }**
+    **          else**
+    **          {**
+    **                <span style="color:#0000FF">&lt;</span><span style="color:#800000">span</span><span style="color:#0000FF">&gt;</span>@Html.ActionLink(&quot;Yes&quot;, &quot;EnableLocalCache&quot;, new { enabled = true })<span style="color:#0000FF">&lt;/</span><span style="color:#800000">span</span><span style="color:#0000FF">&gt;</span><span style="color:#0000FF">&lt;</span><span style="color:#800000">span</span><span style="color:#0000FF">&gt;</span> | No<span style="color:#0000FF">&lt;/</span><span style="color:#800000">span</span><span style="color:#0000FF">&gt;</span>**
+    **          }**
+    **     }**
+         <span style="color:#0000FF">&lt;</span><span style="color:#800000">div</span> <span style="color:#FF0000">id</span>=<span style="color:#0000FF">&quot;elapsedTime&quot;</span><span style="color:#0000FF">&gt;</span>Elapsed time: @Model.ElapsedTime.ToString() milliseconds.<span style="color:#0000FF">&lt;/</span><span style="color:#800000">div</span><span style="color:#0000FF">&gt;</span>
+    <span style="color:#0000FF">&lt;/</span><span style="color:#800000">fieldset</span><span style="color:#0000FF">&gt;</span>
+    `</pre>
+7.  Нажмите клавишу **F5**, чтобы выполнить построение и запустить приложение в эмуляторе вычислений.
+8.  При запуске приложения функция кэширования первоначально отключена, а параметры локального кэша скрыты (они становятся доступными при включении функции кэширования). Включите функцию кэширования, затем включите локальный кэш.9.  Обновите страницу несколько раз, пока отображаемое время обращения не стабилизируется. Обратите внимание, что время доступа значительно сократилось и составляет менее миллисекунды. Это означает, что приложение получает данные из локального кэша в оперативной памяти.    ![Использование локального кэша](Images/using-the-local-cache.png?raw=true "Использование локального кэша")
+    _Использование локального кэша_
+10.  Обратите внимание, что при обновлении страницы идентификатор **Object ID**, отображаемый в верхней части каталога продуктов, не меняется. Это означает, что репозиторий каждый раз возвращает один и тот же объект.
+    > **Примечание.**  Это важный момент для понимания. Раньше, когда мы работали с отключенным локальным кэшем, изменение полученного из кэша объекта никак не влияло на кэшированные данные, и последующие запросы возвращали новую копию. Локальный кэш хранит ссылки на объекты, находящиеся в оперативной памяти; при изменении объекта меняются и кэшированные данные. Необходимо иметь в виду эту особенность при использовании кэша для работы приложения. Если кэшированный объект был изменен и приложение запросило его из кэша, то наличие изменений в объекте будет зависеть от того, используется локальный или удаленный кэш.
+11.  Подождите не менее 30&nbsp;секунд и обновите страницу еще раз. Обратите внимание, что время обработки запроса приняло прежнее значение, а идентификатор объекта изменился. Это означает, что время хранения кэшированного объекта истекло и он был удален из памяти в соответствии с политикой окончания срока действия, определенной при размещении объекта в кэше.
+
+    <a name="Exercise3"></a>
+
+    ### Упражнение 3. Создание расширяемого слоя кэширования с возможностью его повторного использования
+
+    В предыдущем упражнении вы изучили основные аспекты применения службы кэширования Windows Azure. Вы непосредственно обновляли методы для класса доступа к данным и обеспечивали кэширование получаемых из репозитория данных. Такой подход может принести ощутимую пользу, однако для его применения необходимо обновить все методы доступа к данным. Есть и другой подход, не требующий внесения изменений в классы доступа к данным. Он может оказаться более удобным. 
+
+    В этом упражнении вы создадите слой кэширования поверх имеющихся классов доступа к данным. Такой слой кэширования позволит подключать различных поставщиков кэша или вовсе обходиться без них. Для этого достаточно внести незначительные изменения в настройки.
+
+    Чтобы выполнить построение этого слоя, вы создадите абстрактный класс кэширования **CachedDataSource**, позволяющий помещать данные в кэш и удалять их оттуда. С&nbsp;помощью этого класса вы создадите эквивалент кэширования для любого источника данных, используемого вашим приложением. Единственное предварительное требование&nbsp;&mdash; создание источником данных контракта, определяющего операции доступа к данным. Класс кэширования инкапсулирует поставщика кэша, которого необходимо задать в конструкторе класса, а также предоставляет методы получения и удаления данных из кэша.
+
+    Метод извлечения данных в классе кэширования получает ключ кэша, который однозначно идентифицирует: кэшированный объект; делегата, получающего данные из источника; политику окончания срока действия, определяющую время удаления информации из кэша. Этот метод основан на стандартной модели кэширования: вначале он пытается получить данные из кэша, а затем, если копию обнаружить не удается, получает данные из источника с&nbsp;помощью делегата и помещает их в кэш.
+
+    Реализация класса **CachedDataSource** является универсальной и позволяет использовать любого поставщика кэша, удовлетворяющего предъявляемым требованиям. Чтобы определить поставщика кэша, необходимо передать его конструктору экземпляр [ObjectCache](http://msdn.microsoft.com/en-us/library/system.runtime.caching.objectcache.aspx). Класс **ObjectCache**, являющийся частью пространства имен **System.Runtime.Caching**, был реализован в платформе .NET Framework&nbsp;4 и предоставил возможность кэширования данных для всех приложений. Этот абстрактный класс представляет собой кэш объектов и включает основные методы доступа к поставщику кэширования, расположенному уровнем ниже. Платформа .NET Framework предоставляет реализацию этого класса&nbsp;&mdash; [MemoryCache](http://msdn.microsoft.com/en-us/library/system.runtime.caching.memorycache.aspx), которая позволяет кэшировать объекты в оперативной памяти. 
+
+    Чтобы использовать эту службу кэширования в сочетании с производным классом **CachedDataSource**, необходимо создать реализацию класса **ObjectCache** для работы с конкретным поставщиком кэша. Вы можете создать фабрику источников данных, которая позволит выбирать подходящую для конкретного случая реализацию кэша. В этом случае для замены поставщика кэша достаточно поменять настройку в конфигурационном файле.
+
+    В настоящее время служба кэширования Windows Azure не предоставляет собственной реализации класса **ObjectCache**. Однако вы можете создать класс-оболочку, который позволит работать с этой службой. Пример такой реализации&nbsp;&mdash; класс **AzureCacheProvider**, расположенный в каталоге **BuildingAppsWithCacheService\Source\Assets**. Этот класс является производным от **ObjectCache** и позволяет работать со службой кэширования Windows Azure.
+
+    Чтобы использовать преимущества этой реализации для приложения Azure Store, создадим копию кода для доступа к кэшу в классе **ProductsRepository**. Приложение использует этот класс, реализующий контракт **IProductsRepository** с единственной операцией **GetProducts**, для получения данных каталога из базы данных Windows Azure SQL. Чтобы создать кэшируемый источник данных каталога, выполните следующие действия:
+
+*   Создайте класс **CachingProductsReposity**, наследующий от **CachedDataSource**.
+*   Добавьте в новый класс конструктора, принимающего два параметра&nbsp;&mdash; **IProductRepository** (Экземпляр класса некэшируемого источника данных) и **ObjectCache** (Экземпляр поставщика кэша, который будет использоваться в приложении).
+*   Создайте методы работы с **IProductRepository**, вызывающие метод **RetrievedCachedData** базового класса и передающие делегат, вызывающий исходный класс источника данных.
+
+    <a name="Ex3Task1"></a>
+
+    #### Задание 1. Реализация базового класса кэшируемого источника данных
+
+    В этом задании мы создадим абстрактный класс, который будет использоваться в качестве базового для классов кэшируемых источников данных. Этот класс общего назначения можно использовать и в других приложениях, в которых необходим слой кэширования.
+
+1.  Запустите **Microsoft Visual Studio 2012 Express for Web** от имени администратора.
+2.  Откройте решение **Begin** из каталога **Source\Ex3-ReusableCachingImplementation**.
+    > **Важно!**     Перед запуском решения убедитесь, что начальный проект установлен. Для проектов MVC начальная страница должна быть пустой.    Чтобы указать начальный проект, откройте **обозреватель решений**, щелкните правой кнопкой мыши проект **CloudShop.Azure** и выберите **Set as StartUp Project** (Использовать в качестве начального проекта).    Чтобы настроить начальную страницу, откройте **обозреватель решений**, щелкните правой кнопкой мыши проект **CloudShop** и выберите **Properties** (Свойства). В окне **Properties** выберите вкладку **Web** (Интернет). В списке **Start Action** (Начальное действие) выберите **Specific Page** (Определенная страница). Оставьте это поле пустым.
+3.  Откройте файл **Web.config** и обновите строку подключения _NorthwindEntities_, создав ссылку на базу данных. Замените строки **[YOUR-SQL-DATABASE-SERVER-ADDRESS]**, **[SQL-DATABASE-USERNAME]** и **[SQL-DATABASE-PASSWORD]** на имя сервера Windows Azure SQL Database, имя пользователя с правами администратора и пароль администратора, который вы использовали для регистрации на портале и создания базы данных при начальной установке.
+    > **Примечание.**  Следуя инструкции по установке, необходимо создать копию базы данных Northwind2 для вашей учетной записи базы данных Windows Azure SQL, а также настроить брандмауэр базы данных Windows Azure SQL.
+4.  Добавьте ссылку на сборку **System.Runtime.Caching** в проекте **CloudShop**.
+5.  В каталоге **Services** (Службы) проекта **CloudShop** создайте папку **Caching** (Кэширование).
+6.  В папке **Caching** создайте файл для нового класса, **CachedDataSource.cs**.
+7.  В этот файл добавьте директиву пространства имен для **System.Runtime.Caching**.
+    <!--mark: 5   -->
+    <span class="codelanguage">C#</span><pre>`<span style="color:#0000FF">using</span> System;
+    <span style="color:#0000FF">using</span> System.Collections.Generic;
+    <span style="color:#0000FF">using</span> System.Linq;
+    <span style="color:#0000FF">using</span> System.Web;
+    **<span style="color:#0000FF">using</span> System.Runtime.Caching;**
+    ...
+    `</pre>
+8.  Задайте модификатор **abstract** для класса **CachedDataSource**.
+    <!--mark: 1-3   -->
+    <span class="codelanguage">C#</span><pre>`**<span style="color:#0000FF">public</span> <span style="color:#0000FF">abstract</span> <span style="color:#0000FF">class</span> CachedDataSource**
+    **{**
+    **}**
+    `</pre>
+9.  Добавьте в класс следующие (выделенные) поля членов.
+    (Фрагмент кода&nbsp;&mdash; _BuildingAppsWithCachingService-Ex3-CachedDataSource member fields-CS_)
+    <!--mark: 3,4   -->
+    <span class="codelanguage">C#</span><pre>`<span style="color:#0000FF">public</span> <span style="color:#0000FF">abstract</span> <span style="color:#0000FF">class</span> CachedDataSource
+    {
+    **  <span style="color:#0000FF">private</span> <span style="color:#0000FF">readonly</span> ObjectCache cacheProvider;**
+    **  <span style="color:#0000FF">private</span> <span style="color:#0000FF">readonly</span> <span style="color:#0000FF">string</span> regionName;**
+    }
+    `</pre>
+10.  Теперь добавьте конструктор, который принимает в качестве параметров кэш объекта и имя области. Необходимые строки выделены ниже.
+    (Фрагмент кода&nbsp;&mdash; _BuildingAppsWithCachingService-Ex3-CachedDataSource constructor-CS_)
+    <!--mark: 4-18   -->
+    <span class="codelanguage">C#</span><pre>`<span style="color:#0000FF">public</span> <span style="color:#0000FF">abstract</span> <span style="color:#0000FF">class</span> CachedDataSource
+    {
+      ...
+    **  <span style="color:#0000FF">public</span> CachedDataSource(ObjectCache cacheProvider, <span style="color:#0000FF">string</span> regionName)**
+    **  {**
+    **    <span style="color:#0000FF">if</span> (cacheProvider == <span style="color:#0000FF">null</span>)**
+    **    {**
+    **      <span style="color:#0000FF">throw</span> <span style="color:#0000FF">new</span> ArgumentNullException(<span style="color:#8B0000">&quot;cacheProvider&quot;</span>);**
+    **    }**
+    **    <span style="color:#0000FF">if</span> (cacheProvider <span style="color:#0000FF">is</span> MemoryCache)**
+    **    {**
+    **      regionName = <span style="color:#0000FF">null</span>;**
+    **    }**
+    **    <span style="color:#0000FF">this</span>.cacheProvider = cacheProvider;**
+    **    <span style="color:#0000FF">this</span>.regionName = regionName;**
+    **  }**
+    }
+    `</pre>
+    > **Примечание.** Конструктор **CachedDataSource** принимает два параметра: экземпляр объекта ObjectCache ([<a href="http://msdn.microsoft.com/en-us/library/system.runtime.caching.objectcache.aspx">http://msdn.microsoft.com/en-us/library/system.runtime.caching.objectcache.aspx](http://msdn.microsoft.com/en-us/library/system.runtime.caching.objectcache.aspx)</a>), который содержит методы и свойства доступа к кэшу объектов, а также имя области.  Область кэша используется для упорядочивания кэшируемых объектов.
+11.  Добавьте в код следующий (выделенный) метод для получения данных из кэша.
+    (Фрагмент кода&nbsp;&mdash; _BuildingAppsWithCachingService-Ex3-RetrieveCachedData method-CS_)
+    <!--mark: 4-19   -->
+    <span class="codelanguage">C#</span><pre>`<span style="color:#0000FF">public</span> <span style="color:#0000FF">abstract</span> <span style="color:#0000FF">class</span> CachedDataSource
+    {
+      ...
+    **  <span style="color:#0000FF">protected</span> T RetrieveCachedData&lt;T&gt;(<span style="color:#0000FF">string</span> cacheKey, Func&lt;T&gt; fallbackFunction, CacheItemPolicy cachePolicy) where T : <span style="color:#0000FF">class</span>**
+    **  {**
+    **    <span style="color:#0000FF">var</span> data = <span style="color:#0000FF">this</span>.cacheProvider.Get(cacheKey, <span style="color:#0000FF">this</span>.regionName) <span style="color:#0000FF">as</span> T;**
+    **    <span style="color:#0000FF">if</span> (data != <span style="color:#0000FF">null</span>)**
+    **    {**
+    **      <span style="color:#0000FF">return</span> data;**
+    **    }**
+    **    data = fallbackFunction();**
+    **    <span style="color:#0000FF">if</span> (data != <span style="color:#0000FF">null</span>)**
+    **    {**
+    **      <span style="color:#0000FF">this</span>.cacheProvider.Add(<span style="color:#0000FF">new</span> CacheItem(cacheKey, data, <span style="color:#0000FF">this</span>.regionName), cachePolicy);**
+    **    }**
+    **    <span style="color:#0000FF">return</span> data;**
+    **  }**
+    }
+    `</pre>
+    > **Примечание.** Метод **RetrieveCachedData** использует предоставленный ключ для получения из кэша копии запрошенных данных. Если данные доступны, метод возвращает их. В противном случае данные копируются из источника с&nbsp;помощью делегата и кэшируются в соответствии с определенной политикой окончания срока действия.
+12.  Добавьте в код метод, удаляющий данные из кэша.
+    (Фрагмент кода&nbsp;&mdash; _BuildingAppsWithCachingService-Ex3-RemoveCachedData method-CS_)
+    <!--mark: 4-7   -->
+    <span class="codelanguage">C#</span><pre>`<span style="color:#0000FF">public</span> <span style="color:#0000FF">abstract</span> <span style="color:#0000FF">class</span> CachedDataSource
+    {
+      ...
+    **  <span style="color:#0000FF">protected</span> <span style="color:#0000FF">void</span> RemoveCachedData(<span style="color:#0000FF">string</span> cacheKey)**
+    **  {**
+    **    <span style="color:#0000FF">this</span>.cacheProvider.Remove(cacheKey, <span style="color:#0000FF">this</span>.regionName);**
+    **  }**
+    }
+    `</pre>
+13.  Сохраните файл **CachedDataSource.cs**.
+
+    <a name="Ex3Task2"></a>
+
+    #### Задание 2. Создание кэшируемого репозитория данных для каталога продуктов
+
+    Абстрактный базовый класс для кэширования источников данных создан. Теперь мы добавим реализацию этого класса, которую можно использовать вместо класса **ProductsRepository**. При выполнении этого задания мы будем использовать те же шаги, что и при создании слоя кэширования для кода доступа к данным с помощью класса **CachedDataSource**.
+
+1.  В каталоге **Services\Caching** проекта **CloudShop** создайте файл для нового класса **CachedProductsRepository.cs**.
+2.  Добавьте в этот файл директиву пространства имен для **System.Runtime.Caching** и **CloudShop.Services**.
+    <!-- mark:5-6    -->
+    <span class="codelanguage">C#</span><pre>`<span style="color:#0000FF">using</span> System;
+    <span style="color:#0000FF">using</span> System.Collections.Generic;
+    <span style="color:#0000FF">using</span> System.Linq;
+    <span style="color:#0000FF">using</span> System.Web;
+    **<span style="color:#0000FF">using</span> CloudShop.Services;**
+    **<span style="color:#0000FF">using</span> System.Runtime.Caching;**
+    ...
+    `</pre>
+3.  Измените объявление класса **CachedProductsRepository** так, чтобы он наследовал от двух классов: **CachedDataSource** и **IProductRepository**. Этот код приведен ниже.
+    <!--mark: 2   -->
+    <span class="codelanguage">C#</span><pre>`<span style="color:#0000FF">public</span> <span style="color:#0000FF">class</span> CachedProductsRepository    **  : CachedDataSource, IProductRepository**
+    {
+    }
+    `</pre>
+    > **Примечание.** Наследование класса кэширования источника данных от **CachedDataSource** необходимо для того, чтобы новый класс обеспечивал те же возможности кэширования и реализовывал тот же контракт источника данных, что и исходный класс.
+4.  Добавьте следующий (выделенный) код, определяющий конструктора и объявляющий поле члена, содержащее ссылку на источник данных, который расположен уровнем ниже.
+    (Фрагмент кода&nbsp;&mdash; _BuildingAppsWithCachingService-Ex3-CachedProductsRepository constructor-CS_)
+    <!--mark: 3-9   -->
+    <span class="codelanguage">C#</span><pre>`<span style="color:#0000FF">public</span> <span style="color:#0000FF">class</span> CachedProductsRepository : CachedDataSource, IProductRepository
+    {
+    **  <span style="color:#0000FF">private</span> <span style="color:#0000FF">readonly</span> IProductRepository repository;**
+    **  <span style="color:#0000FF">public</span> CachedProductsRepository(IProductRepository repository, ObjectCache cacheProvider) :**
+    **    <span style="color:#0000FF">base</span>(cacheProvider, <span style="color:#8B0000">&quot;Products&quot;</span>)**
+    **  {**
+    **    <span style="color:#0000FF">this</span>.repository = repository;**
+    **  }**
+    }
+    `</pre>
+    > **Примечание.** Конструктор **CachedProductsRepository** инициализирует базовый класс с&nbsp;помощью поставщика кэша и сохраняет в поле члена ссылку на источник данных, расположенный уровнем ниже. Класс определяет область кэша &quot;_Products_&quot;.
+5.  Теперь обеспечим выполнение контракта **IProductRepository** для реализации метода **GetProducts**. Соответствующий код показан ниже.
+    (Фрагмент кода&nbsp;&mdash; _BuildingAppsWithCachingService-Ex3-GetProducts method -CS_)
+    <!--mark: 4-10   -->
+    <span class="codelanguage">C#</span><pre>`<span style="color:#0000FF">public</span> <span style="color:#0000FF">class</span> CachedProductsRepository : CachedDataSource, IProductRepository
+    {
+      ...
+    **  <span style="color:#0000FF">public</span> List&lt;<span style="color:#0000FF">string</span>&gt; GetProducts()**
+    **  {**
+    **    <span style="color:#0000FF">return</span> RetrieveCachedData(**
+    **    <span style="color:#8B0000">&quot;allproducts&quot;</span>,**
+    **    () =&gt; <span style="color:#0000FF">this</span>.repository.GetProducts(),**
+    **    <span style="color:#0000FF">new</span> CacheItemPolicy { AbsoluteExpiration = DateTime.UtcNow.AddMinutes(1) });**
+    **  }**
+    }
+    `</pre>
+    > **Примечание.** Метод **GetProducts** вызывает метод **RetrieveCachedData** базового класса и передает ему ключ, который однозначно определяет кэшированный элемент; в нашем случае это &quot;_allproducts_&quot;. Если данные в кэше не найдены, в форме лямбда-выражения вызывается делегат, который, в свою очередь, вызывает метод **GetProducts** для исходного источника данных и сохраняет данные в кэше. В соответствии с политикой [CacheItemPolicy](http://msdn.microsoft.com/en-us/library/system.runtime.caching.cacheitempolicy.aspx), время хранения объекта в кэше составляет одну&nbsp;минуту.
+    Благодаря простоте контракта **IProductRepository**, для реализации кэширования больше ничего не требуется. Обычно источники данных содержат более чем один метод. В этом случае также можно использовать базовый подход и реализовать каждый метод по приведенному образцу.
+
+    <a name="Ex3Task3"></a>
+
+    #### Задание 2. Создание класса фабрики источника данных
+
+    В этом задании мы создадим класс фабрики, который будет возвращать экземпляры источника данных. Фабрика использует поставщика кэша, указанного в настройках конфигурации приложения, и возвращает источник данных, настроенный для работы с выбранным поставщиком.
+
+1.  Скопируйте файл **AzureCacheProvider.cs** из каталога **\Source\Assets** в проект **CloudShop** и поместите его в каталог **Services\Caching**.
+    > **Примечание.** Класс **AzureCacheProvider** реализует класс **ObjectCache**, который служит оболочкой для службы кэширования Windows Azure.
+2.  В каталоге **Services** проекта **CloudShop** создайте файл для нового класса, **DataSourceFactory.cs**.
+3.  В созданный файл класса добавьте директивы пространства имен для **System.Configuration**, **System.Runtime.Caching**, **CloudShop.Services** и **CloudShop.Services.Caching**.
+    (Фрагмент кода&nbsp;&mdash; _BuildingAppsWithCachingService-Ex3-DataSourceFactory namespaces-CS_)
+    <!--mark: 5-8   -->
+    <span class="codelanguage">C#</span><pre>`<span style="color:#0000FF">using</span> System;
+    <span style="color:#0000FF">using</span> System.Collections.Generic;
+    <span style="color:#0000FF">using</span> System.Linq;
+    <span style="color:#0000FF">using</span> System.Web;
+    **<span style="color:#0000FF">using</span> System.Configuration;**
+    **<span style="color:#0000FF">using</span> System.Runtime.Caching;**
+    **<span style="color:#0000FF">using</span> CloudShop.Services;**
+    **<span style="color:#0000FF">using</span> CloudShop.Services.Caching;**
+    `</pre>
+4.  Добавьте следующий (выделенный) код, который определяет тип конструктора для класса **DataSourceFactory** и объявляет статическое поле, содержащее ссылку на указанного в настройках поставщика службы кэширования.
+    (Фрагмент кода&nbsp;&mdash; _BuildingAppsWithCachingService-Ex3-DataSourceFactory class constructor-CS_)
+    <!--mark: 3-20   -->
+    <span class="codelanguage">C#</span><pre>`<span style="color:#0000FF">public</span> <span style="color:#0000FF">class</span> DataSourceFactory
+    {
+    **  <span style="color:#0000FF">private</span> <span style="color:#0000FF">static</span> <span style="color:#0000FF">readonly</span> ObjectCache cacheProvider;**
+    **  <span style="color:#0000FF">static</span> DataSourceFactory()**
+    **  {**
+    **    <span style="color:#0000FF">string</span> provider = ConfigurationManager.AppSettings[<span style="color:#8B0000">&quot;CacheService.Provider&quot;</span>];**
+    **    <span style="color:#0000FF">if</span> (provider != <span style="color:#0000FF">null</span>)**
+    **    {**
+    **      <span style="color:#0000FF">switch</span> (ConfigurationManager.AppSettings[<span style="color:#8B0000">&quot;CacheService.Provider&quot;</span>].ToUpperInvariant())**
+    **      {**
+    **        <span style="color:#0000FF">case</span> <span style="color:#8B0000">&quot;AZURE&quot;</span>:**
+    **          cacheProvider = <span style="color:#0000FF">new</span> AzureCacheProvider();**
+    **          <span style="color:#0000FF">break</span>;**
+    **        <span style="color:#0000FF">case</span> <span style="color:#8B0000">&quot;INMEMORY&quot;</span>:**
+    **          cacheProvider = MemoryCache.Default;**
+    **          <span style="color:#0000FF">break</span>;**
+    **      }**
+    **    }**
+    **  }**
+    }
+    `</pre>
+    > **Примечание.** Конструктор класса считывает параметр _CacheService.Provider_ из файла конфигурации и инициализирует поставщика кэша, который будет использоваться в приложении. В этом примере конструктор распознает два возможных значения параметра. Одно из них соответствует службе кэширования Windows Azure, другое&nbsp;&mdash; поставщику кэша в оперативной памяти для платформы .NET Framework&nbsp;4.
+5.  Добавьте в код следующее свойство, возвращающее данные настроенного поставщика кэша.
+    (Фрагмент кода&nbsp;&mdash; _BuildingAppsWithCachingService-Ex3-CacheProvider property-CS_)
+    <!--mark: 4-7   -->
+    <span class="codelanguage">C#</span><pre>`<span style="color:#0000FF">public</span> <span style="color:#0000FF">class</span> DataSourceFactory
+    {
+      ...
+    **  <span style="color:#0000FF">public</span> <span style="color:#0000FF">static</span> ObjectCache CacheProvider**
+    **  {**
+    **    <span style="color:#0000FF">get</span> { <span style="color:#0000FF">return</span> cacheProvider; }**
+    **  }**
+    }
+    `</pre>
+6.  И наконец, добавьте метод для возврата экземпляра источника данных **IProductRepository**, инициализированного выбранным поставщиком службы кэширования.
+    (Фрагмент кода&nbsp;&mdash; _BuildingAppsWithCachingService-Ex3-GetProductsRepository method-CS_)
+    <!--mark: 4-13   -->
+    <span class="codelanguage">C#</span><pre>`<span style="color:#0000FF">public</span> <span style="color:#0000FF">class</span> DataSourceFactory
+    {
+      ...
+    **  <span style="color:#0000FF">public</span> <span style="color:#0000FF">static</span> IProductRepository GetProductsRepository(<span style="color:#0000FF">bool</span> enableCache)**
+    **  {**
+    **    <span style="color:#0000FF">var</span> dataSource = <span style="color:#0000FF">new</span> ProductsRepository();**
+    **    <span style="color:#0000FF">if</span> (enableCache &amp;&amp; CacheProvider != <span style="color:#0000FF">null</span>)**
+    **    {**
+    **      <span style="color:#0000FF">return</span> <span style="color:#0000FF">new</span> CachedProductsRepository(dataSource, cacheProvider);**
+    **    }**
+    **    <span style="color:#0000FF">return</span> dataSource;**
+    **  }**
+    }
+    `</pre>
+
+    <a name="Ex3Task4"></a>
+
+    #### Задание 4. Настройка приложении для использования кэша
+
+    В этом задании мы обновим приложение и будем использовать фабрику источника данных для создания экземпляра источника данных о каталоге продуктов. В завершение настройки уровня кэширования мы укажем параметры, необходимые для выбора поставщика кэша.
+
+1.  Откройте файл **HomeController.cs**, расположенный в каталоге **Controllers**, и перейдите к методу **Index**. В этом методе замените строку инициализации локальной переменной **productRepository** выделенным ниже кодом. Теперь для получения экземпляра **IProductRepository** будет использоваться фабрика **DataSourceFactory**.
+    <!--mark: 10   -->
+    <span class="codelanguage">C#</span><pre>`<span style="color:#0000FF">public</span> <span style="color:#0000FF">class</span> HomeController : Controller
+    {
+      ...
+      <span style="color:#0000FF">public</span> ActionResult Index()
+      {
+        <span style="color:#0000FF">bool</span> enableCache = (<span style="color:#0000FF">bool</span>)<span style="color:#0000FF">this</span>.Session[<span style="color:#8B0000">&quot;EnableCache&quot;</span>];
+        <span style="color:#008000">// получить каталог продуктов из репозитория и измерить затраченное время</span>
+        Services.IProductRepository productRepository =
+    **    CloudShop.Services.DataSourceFactory.GetProductsRepository(enableCache);**
+        Stopwatch stopWatch = <span style="color:#0000FF">new</span> Stopwatch();
+        stopWatch.Start();
+        ...
+      }
+      ...
+    }
+    `</pre>
+2.  Чтобы настроить фабрику **DataSourceFactory**, откройте файл **Web.config** и добавьте в раздел **appSettings** следующие (выделенные) строки.
+    (Фрагмент кода&nbsp;&mdash; _BuildingAppsWithCachingService-Ex3-Web.config appSettings section-CS_)
+    <!--mark: 3   -->
+    <span class="codelanguage">XML</span><pre>`  <span style="color:#0000FF">&lt;</span><span style="color:#800000">appSettings</span><span style="color:#0000FF">&gt;</span>
+         ...
+    **    <span style="color:#0000FF">&lt;</span><span style="color:#800000">add</span> <span style="color:#FF0000">key</span>=<span style="color:#0000FF">&quot;CacheService.Provider&quot;</span> <span style="color:#FF0000">value</span>=<span style="color:#0000FF">&quot;InMemory&quot;</span> <span style="color:#0000FF">/&gt;</span>**
+      <span style="color:#0000FF">&lt;/</span><span style="color:#800000">appSettings</span><span style="color:#0000FF">&gt;</span>
+    `</pre>
+    > **Примечание.** Для приложений, размещаемых на одиночном узле, рекомендуется выбирать поставщика, который обеспечивает кэширование в оперативной памяти.
+3.  Нажмите клавиши **CTRL+F5**, чтобы построить и протестировать улучшенную реализацию функции кэширования в эмуляторе вычислений.
+4.  При запуске приложения функция кэширования первоначально отключена. Щелкните **Yes** (Да) в поле **Enable Cache** (Включить кэш) и дождитесь обновления страницы. Не забывайте, что при выполнении первого запроса после включения функции кэширования приложению необходимо обратиться к источнику данных, чтобы получить данные и поместить их в кэш.
+5.  Щелкните ссылку **Products** или обновите страницу в браузере еще раз. Теперь приложение получает данные о продуктах из кэша. При использовании платформы .NET Framework для кэширования в оперативной памяти время доступа значительно снизится и составит менее одной миллисекунды.
+6.  Теперь откройте файл **Web.config**, перейдите к разделу **appSettings** и установите для поля **CacheService.Provider** значение _Azure_.
+    <!--mark: 3   -->
+    <span class="codelanguage">XML</span><pre>`  <span style="color:#0000FF">&lt;</span><span style="color:#800000">appSettings</span><span style="color:#0000FF">&gt;</span>
+              ...
+    **        <span style="color:#0000FF">&lt;</span><span style="color:#800000">add</span> <span style="color:#FF0000">key</span>=<span style="color:#0000FF">&quot;CacheService.Provider&quot;</span> <span style="color:#FF0000">value</span>=<span style="color:#0000FF">&quot;Azure&quot;</span> <span style="color:#0000FF">/&gt;</span>**
+      <span style="color:#0000FF">&lt;/</span><span style="color:#800000">appSettings</span><span style="color:#0000FF">&gt;</span>
+
+    > **Примечание.** Для приложений, размещаемых на множестве узлов, не рекомендуется выбирать поставщика, который обеспечивает кэширование в оперативной памяти. В этом случае лучше использовать распределенное кэширование Windows Azure.
+7.  Сохраните файл **Web.config**.
+
+8.  Щелкните ссылку **Recycle** (Перезапустить), чтобы перезапустить роль и перезагрузить конфигурацию. Щелкнув эту ссылку, вы удалите содержимое страницы Products.
+
+9.  Снова откройте браузер, удалите _/Home/Recycle_ из адресной строки и нажмите клавишу ВВОД, чтобы перезапустить сайт. Через некоторое время откроется пустая страница **Products**.
+
+10.  Убедитесь, что функция кэширования по-прежнему включена. Обновите страницу в браузере **дважды**, чтобы поместить данные в кэш. Обратите внимание: время, затраченное на обработку запроса, возросло. Это означает, что теперь используется не поставщик услуг кэширования в оперативной памяти, а служба кэширования Windows Azure.
+
+* * *
+
+<a name="Summary"></a>
+
+## Сводка
+
+На этом практическом занятии вы научились использовать службу кэширования Windows Azure. Вы узнали, как использовать кластер кэша для сохранения состояния сеанса при перезагрузках и размещении приложения в нескольких экземплярах роли. Кроме того, вы изучили основы кэширования данных с помощью Windows Azure и научились кэшировать результаты запросов к базе данных Windows Azure SQL. И наконец, вы научились создавать пригодный для многократного использования уровень кэширования и добавлять его к собственным приложениям.
+
+</span>
+		</div>
+
+[к началу страницы](#top)
